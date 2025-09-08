@@ -62,6 +62,17 @@ class ConfigManager:
         self.config['settings'][key] = value
         self.save_config()
 
+    # --- 修改开始: 添加一个新方法用于批量设置 ---
+    def set_geometry_settings(self, size, position, pane_width):
+        """
+        批量更新窗口几何相关的设置，并只保存一次。
+        """
+        self.config['settings']['window_size'] = size
+        self.config['settings']['window_position'] = position
+        self.config['settings']['pane_width'] = pane_width
+        self.save_config()
+    # --- 修改结束 ---
+
     def get_note_schedule(self, note_filename):
         """获取指定笔记的调度配置"""
         return self.config['notes_schedule'].get(note_filename)

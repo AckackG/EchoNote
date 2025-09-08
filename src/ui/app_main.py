@@ -1,4 +1,4 @@
-#!/user/bin/env python3
+#!/user/bin-env python3
 # -*- coding: utf-8 -*-
 import os
 import sys
@@ -27,9 +27,7 @@ class App(ctk.CTk):
         self.scheduler_service = scheduler_service
         self.selected_note = None
 
-        # --- 修改开始: 添加一个变量来跟踪延迟任务 ---
         self._save_geometry_after_id = None
-        # --- 修改结束 ---
 
         # --- 窗口配置 ---
         self.title("TFInformer")
@@ -133,48 +131,46 @@ class App(ctk.CTk):
 
         self.scheduler_service.open_file_with_editor(self.selected_note, file_path)
 
+    # --- 修改开始: 调用新的批量保存方法 ---
     def _save_geometry(self):
         """内部方法，用于保存窗口几何信息"""
-        # 增加一个基本的窗口大小判断，防止窗口最小化时保存无效尺寸
         if self.winfo_width() > 50 and self.winfo_height() > 50:
             logger.info("保存窗口位置和大小...")
-            self.config_manager.set_setting("window_size", [self.winfo_width(), self.winfo_height()])
-            self.config_manager.set_setting("window_position", [self.winfo_x(), self.winfo_y()])
-            self.config_manager.set_setting("pane_width", self.left_frame.winfo_width())
+            self.config_manager.set_geometry_settings(
+                size=[self.winfo_width(), self.winfo_height()],
+                position=[self.winfo_x(), self.winfo_y()],
+                pane_width=self.left_frame.winfo_width()
+            )
 
-    # --- 修改开始: 优化保存逻辑 ---
+    # --- 修改结束 ---
+
     def on_window_configure(self, event=None):
         """由<Configure>事件绑定的回调函数，使用延迟保存以避免过于频繁的写入"""
         if event and event.widget == self:
-            # 如果已有计时器，则取消它，重新计时
             if self._save_geometry_after_id:
                 self.after_cancel(self._save_geometry_after_id)
 
-            # 在500毫秒后执行保存操作
             self._save_geometry_after_id = self.after(500, self._save_geometry)
 
     def hide_window(self):
         """隐藏窗口到系统托盘"""
-        # 如果有延迟保存任务正在等待，先取消它
         if self._save_geometry_after_id:
             self.after_cancel(self._save_geometry_after_id)
             self._save_geometry_after_id = None
 
-        self._save_geometry()  # 立即保存当前最终状态
+        self._save_geometry()
         self.withdraw()
         self.tray_manager.setup_tray_icon()
 
     def quit_app_from_tray(self, icon, item):
         """完全退出应用程序"""
         logger.info("正在退出应用程序...")
-        # 如果有延迟保存任务正在等待，先取消它
         if self._save_geometry_after_id:
             self.after_cancel(self._save_geometry_after_id)
             self._save_geometry_after_id = None
 
-        self._save_geometry()  # 立即保存当前最终状态
+        self._save_geometry()
         icon.stop()
         self.scheduler_service.stop()
         self.quit()
         sys.exit()
-    # --- 修改结束 ---

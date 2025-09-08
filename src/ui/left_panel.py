@@ -37,7 +37,7 @@ class LeftPanel(ctk.CTkFrame):
         self.refresh_button = ctk.CTkButton(self.left_bottom_frame, text="刷新笔记", command=self.app.refresh_notes_list)
         self.refresh_button.grid(row=0, column=0, padx=(0, 5), sticky="ew")
 
-        self.btn_open_data_folder = ctk.CTkButton(self.left_bottom_frame, text="打开",
+        self.btn_open_data_folder = ctk.CTkButton(self.left_bottom_frame, text="浏览目录",
                                                   command=self.open_data_folder)
         self.btn_open_data_folder.grid(row=0, column=1, padx=(5, 0), sticky="ew")
 

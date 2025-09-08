@@ -22,7 +22,7 @@ class SettingsPanel(ctk.CTkFrame):
         self.entry_data_folder = ctk.CTkEntry(self, placeholder_text="点击右侧按钮选择笔记存放的文件夹")
         self.entry_data_folder.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
         self.entry_data_folder.bind("<FocusOut>", self.on_path_entry_focus_out)
-        self.btn_browse_data = ctk.CTkButton(self, text="浏览", width=80, command=self.browse_data_folder)
+        self.btn_browse_data = ctk.CTkButton(self, text="设置", width=80, command=self.browse_data_folder)
         self.btn_browse_data.grid(row=0, column=2, padx=(10, 10), pady=10)
 
         # MD编辑器
@@ -31,7 +31,7 @@ class SettingsPanel(ctk.CTkFrame):
         self.entry_md_editor = ctk.CTkEntry(self, placeholder_text="选择你的Markdown编辑器 (.exe)")
         self.entry_md_editor.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
         self.entry_md_editor.bind("<FocusOut>", self.on_path_entry_focus_out)
-        self.btn_browse_md = ctk.CTkButton(self, text="浏览", width=80, command=self.browse_md_editor)
+        self.btn_browse_md = ctk.CTkButton(self, text="设置", width=80, command=self.browse_md_editor)
         self.btn_browse_md.grid(row=1, column=2, padx=(10, 10), pady=10)
 
         # 图片编辑器
@@ -40,7 +40,7 @@ class SettingsPanel(ctk.CTkFrame):
         self.entry_img_editor = ctk.CTkEntry(self, placeholder_text="选择你的图片查看器 (.exe)")
         self.entry_img_editor.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
         self.entry_img_editor.bind("<FocusOut>", self.on_path_entry_focus_out)
-        self.btn_browse_img = ctk.CTkButton(self, text="浏览", width=80, command=self.browse_img_editor)
+        self.btn_browse_img = ctk.CTkButton(self, text="设置", width=80, command=self.browse_img_editor)
         self.btn_browse_img.grid(row=2, column=2, padx=(10, 10), pady=10)
 
         # 开机自启
