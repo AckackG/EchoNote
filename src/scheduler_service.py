@@ -110,7 +110,7 @@ class SchedulerService:
             self.toaster.show_toast(
                 title="笔记提醒",
                 msg=f"是时候回顾一下笔记了：\n{filename}",
-                duration=10,
+                duration=60,
                 threaded=True,
                 callback_on_click=lambda: self.open_file_with_editor(filename, file_path)
             )

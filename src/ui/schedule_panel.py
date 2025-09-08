@@ -69,7 +69,7 @@ class SchedulePanel(ctk.CTkFrame):
         self.radio_popup.pack(side="left", padx=5, pady=5)
 
         # 1. 添加Hover提示
-        Tooltip(self.radio_light, text="通过操作系统发送一条可点击的通知消息。")
+        Tooltip(self.radio_light, text="通过操作系统发送一条可点击的通知消息，持续60秒。")
         Tooltip(self.radio_popup, text="直接使用设置好的编辑器打开对应的笔记文件。")
 
         # --- 调度规则构建器 ---
