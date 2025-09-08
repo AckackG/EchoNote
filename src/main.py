@@ -76,6 +76,7 @@ class App(ctk.CTk):
         self.label_data_folder.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.entry_data_folder = ctk.CTkEntry(self.settings_frame, placeholder_text="点击右侧按钮选择笔记存放的文件夹")
         self.entry_data_folder.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        self.entry_data_folder.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_data = ctk.CTkButton(self.settings_frame, text="浏览", width=80,
                                              command=self.browse_data_folder)
         self.btn_browse_data.grid(row=0, column=2, padx=10, pady=10)
@@ -85,6 +86,7 @@ class App(ctk.CTk):
         self.label_md_editor.grid(row=1, column=0, padx=10, pady=10, sticky="w")
         self.entry_md_editor = ctk.CTkEntry(self.settings_frame, placeholder_text="选择你的Markdown编辑器 (.exe)")
         self.entry_md_editor.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        self.entry_md_editor.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_md = ctk.CTkButton(self.settings_frame, text="浏览", width=80, command=self.browse_md_editor)
         self.btn_browse_md.grid(row=1, column=2, padx=10, pady=10)
 
@@ -93,6 +95,7 @@ class App(ctk.CTk):
         self.label_img_editor.grid(row=2, column=0, padx=10, pady=10, sticky="w")
         self.entry_img_editor = ctk.CTkEntry(self.settings_frame, placeholder_text="选择你的图片查看器 (.exe)")
         self.entry_img_editor.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
+        self.entry_img_editor.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_img = ctk.CTkButton(self.settings_frame, text="浏览", width=80, command=self.browse_img_editor)
         self.btn_browse_img.grid(row=2, column=2, padx=10, pady=10)
 
@@ -220,6 +223,20 @@ class App(ctk.CTk):
             # 清空旧的显示
             self.mode_var.set("light")
             self.entry_rule.delete(0, tk.END)
+
+    def on_path_entry_focus_out(self, event=None):
+        """当路径输入框失去焦点时触发保存，并根据情况刷新笔记列表。"""
+        # 检查当前数据文件夹路径与输入框中的路径是否不同
+        current_data_folder = self.config_manager.get_setting("data_folder", "")
+        new_data_folder = self.entry_data_folder.get()
+
+        # 无论如何都保存所有三个路径设置
+        self.save_gui_settings()
+
+        # 仅当数据文件夹路径实际发生改变时才刷新笔记列表
+        if event.widget == self.entry_data_folder and current_data_folder != new_data_folder:
+            logger.info("数据文件夹路径已更改，刷新笔记列表。")
+            self.refresh_notes_list()
 
     def save_current_schedule(self):
         if not hasattr(self, 'selected_note'):
