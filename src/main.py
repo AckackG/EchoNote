@@ -1,6 +1,7 @@
 #!/user/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+import re
 import sys
 import threading
 import tkinter as tk
@@ -50,7 +51,8 @@ class App(ctk.CTk):
 
         # --- 新增：创建可拖动的窗格 ---
         # 使用 tk.PanedWindow 作为容器，并设置样式以匹配主题
-        self.paned_window = tk.PanedWindow(self, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, bg="#2b2b2b", sashwidth=5, opaqueresize=False)
+        self.paned_window = tk.PanedWindow(self, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, bg="#2b2b2b", sashwidth=5,
+                                           opaqueresize=False)
         self.paned_window.grid(row=0, column=0, sticky="nsew")
 
         # --- 左侧笔记列表框架 (父容器改为 paned_window) ---
@@ -128,31 +130,14 @@ class App(ctk.CTk):
         # --- 调度配置区域 ---
         self.schedule_frame = ctk.CTkFrame(self.right_frame)
         self.schedule_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
-        self.schedule_frame.grid_columnconfigure(1, weight=1)
+        self.schedule_frame.grid_columnconfigure(0, weight=1)  # 让内部组件可以扩展
 
         self.label_schedule_title = ctk.CTkLabel(self.schedule_frame, text="提醒设置 (请先在左侧选择一个笔记)",
                                                  font=ctk.CTkFont(size=14))
-        self.label_schedule_title.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+        self.label_schedule_title.grid(row=0, column=0, columnspan=4, padx=10, pady=10, sticky="w")
 
-        # 提醒模式
-        self.label_mode = ctk.CTkLabel(self.schedule_frame, text="提醒模式:")
-        self.mode_var = ctk.StringVar(value="light")
-        self.radio_light = ctk.CTkRadioButton(self.schedule_frame, text="轻度提醒 (系统通知)", variable=self.mode_var,
-                                              value="light")
-        self.radio_popup = ctk.CTkRadioButton(self.schedule_frame, text="弹窗提醒 (打开文件)", variable=self.mode_var,
-                                              value="popup")
-
-        # 调度规则输入
-        self.label_rule = ctk.CTkLabel(self.schedule_frame, text="调度规则:")
-        self.entry_rule = ctk.CTkEntry(self.schedule_frame,
-                                       placeholder_text="例如: every().day.at('10:30') 或 every(5).minutes")
-
-        # 保存按钮
-        self.btn_save_schedule = ctk.CTkButton(self.schedule_frame, text="保存此笔记的设置",
-                                               command=self.save_current_schedule)
-        self.btn_clear_schedule = ctk.CTkButton(self.schedule_frame, text="清除此笔记的设置",
-                                                command=self.clear_current_schedule, fg_color="transparent",
-                                                border_width=2)
+        # --- 初始化调度规则GUI构建器 ---
+        self.init_schedule_builder()
 
         # 将右侧框架添加到 PanedWindow，并设置最小宽度
         self.paned_window.add(self.right_frame, minsize=400)
@@ -162,23 +147,123 @@ class App(ctk.CTk):
         self.refresh_notes_list()
         self.hide_schedule_widgets()  # 默认隐藏
 
+    def init_schedule_builder(self):
+        """创建用于构建调度规则的GUI组件"""
+        # --- 提醒模式 ---
+        self.label_mode = ctk.CTkLabel(self.schedule_frame, text="提醒模式:")
+        self.mode_var = ctk.StringVar(value="light")
+        self.radio_light = ctk.CTkRadioButton(self.schedule_frame, text="轻度提醒 (系统通知)", variable=self.mode_var,
+                                              value="light")
+        self.radio_popup = ctk.CTkRadioButton(self.schedule_frame, text="弹窗提醒 (打开文件)", variable=self.mode_var,
+                                              value="popup")
+
+        # --- 调度规则构建器 ---
+        self.label_rule_header = ctk.CTkLabel(self.schedule_frame, text="提醒规则:")
+
+        # 规则构建器主框架
+        self.rule_builder_frame = ctk.CTkFrame(self.schedule_frame, fg_color="transparent")
+
+        # 频率设置
+        self.label_every = ctk.CTkLabel(self.rule_builder_frame, text="每")
+        self.interval_var = ctk.StringVar(value="1")
+        self.entry_interval = ctk.CTkEntry(self.rule_builder_frame, textvariable=self.interval_var, width=50)
+
+        self.unit_map = {"分钟": "minutes", "小时": "hours", "天": "days", "周": "weeks"}
+        self.unit_map_rev = {v: k for k, v in self.unit_map.items()}
+        self.unit_var = ctk.StringVar(value="天")
+        self.option_unit = ctk.CTkOptionMenu(self.rule_builder_frame, variable=self.unit_var,
+                                             values=list(self.unit_map.keys()), command=self.on_unit_change)
+
+        # 星期选择
+        self.weekday_frame = ctk.CTkFrame(self.schedule_frame, fg_color="transparent")
+        self.label_weekday = ctk.CTkLabel(self.weekday_frame, text="在:")
+        self.weekday_map = {"周一": "monday", "周二": "tuesday", "周三": "wednesday", "周四": "thursday",
+                            "周五": "friday", "周六": "saturday", "周日": "sunday"}
+        self.weekday_map_rev = {v: k for k, v in self.weekday_map.items()}
+        self.weekday_var = ctk.StringVar()
+        self.weekday_selector = ctk.CTkSegmentedButton(self.weekday_frame, values=list(self.weekday_map.keys()),
+                                                       variable=self.weekday_var)
+
+        # 时间选择
+        self.time_frame = ctk.CTkFrame(self.schedule_frame, fg_color="transparent")
+        self.label_at = ctk.CTkLabel(self.time_frame, text="在:")
+        self.hour_var = ctk.StringVar(value="10")
+        self.minute_var = ctk.StringVar(value="30")
+        self.option_hour = ctk.CTkOptionMenu(self.time_frame, variable=self.hour_var,
+                                             values=[f"{h:02d}" for h in range(24)])
+        self.label_time_sep = ctk.CTkLabel(self.time_frame, text=":")
+        self.option_minute = ctk.CTkOptionMenu(self.time_frame, variable=self.minute_var,
+                                               values=[f"{m:02d}" for m in range(60)])
+
+        # 保存与清除按钮
+        self.btn_save_schedule = ctk.CTkButton(self.schedule_frame, text="保存此笔记的设置",
+                                               command=self.save_current_schedule)
+        self.btn_clear_schedule = ctk.CTkButton(self.schedule_frame, text="清除此笔记的设置",
+                                                command=self.clear_current_schedule,
+                                                fg_color="transparent", border_width=2)
+
+        # --- 布局规则构建器 ---
+        self.label_every.grid(row=0, column=0, padx=(0, 5), pady=5)
+        self.entry_interval.grid(row=0, column=1, padx=5, pady=5)
+        self.option_unit.grid(row=0, column=2, padx=5, pady=5)
+
+        self.label_weekday.grid(row=0, column=0, padx=(0, 10), pady=5)
+        self.weekday_selector.grid(row=0, column=1, padx=0, pady=5)
+
+        self.label_at.grid(row=0, column=0, padx=(0, 10), pady=5)
+        self.option_hour.grid(row=0, column=1, padx=0, pady=5)
+        self.label_time_sep.grid(row=0, column=2, padx=5, pady=5)
+        self.option_minute.grid(row=0, column=3, padx=0, pady=5)
+
+    def reset_schedule_gui(self):
+        """将调度GUI重置为默认状态"""
+        self.mode_var.set("light")
+        self.interval_var.set("1")
+        self.unit_var.set("天")
+        self.weekday_var.set("")  # 清除星期选择
+        self.hour_var.set("10")
+        self.minute_var.set("30")
+        self.on_unit_change()  # 更新UI可见性
+
     def hide_schedule_widgets(self):
         self.label_mode.grid_forget()
         self.radio_light.grid_forget()
         self.radio_popup.grid_forget()
-        self.label_rule.grid_forget()
-        self.entry_rule.grid_forget()
+        self.label_rule_header.grid_forget()
+        self.rule_builder_frame.grid_forget()
+        self.weekday_frame.grid_forget()
+        self.time_frame.grid_forget()
         self.btn_save_schedule.grid_forget()
         self.btn_clear_schedule.grid_forget()
 
     def show_schedule_widgets(self):
-        self.label_mode.grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        self.radio_light.grid(row=2, column=0, padx=20, pady=5, sticky="w")
-        self.radio_popup.grid(row=2, column=1, padx=10, pady=5, sticky="w")
-        self.label_rule.grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        self.entry_rule.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
-        self.btn_save_schedule.grid(row=5, column=0, padx=10, pady=20, sticky="w")
-        self.btn_clear_schedule.grid(row=5, column=1, padx=10, pady=20, sticky="w")
+        self.label_mode.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+        self.radio_light.grid(row=2, column=0, columnspan=2, padx=20, pady=5, sticky="w")
+        self.radio_popup.grid(row=2, column=2, columnspan=2, padx=10, pady=5, sticky="w")
+
+        self.label_rule_header.grid(row=3, column=0, columnspan=2, padx=10, pady=(10, 0), sticky="w")
+        self.rule_builder_frame.grid(row=4, column=0, columnspan=4, padx=10, pady=0, sticky="w")
+
+        # 动态显示的组件由 on_unit_change 控制
+        self.on_unit_change()
+
+        self.btn_save_schedule.grid(row=7, column=0, columnspan=2, padx=10, pady=20, sticky="w")
+        self.btn_clear_schedule.grid(row=7, column=2, columnspan=2, padx=10, pady=20, sticky="w")
+
+    def on_unit_change(self, selected_unit=None):
+        """根据选择的单位（分钟/小时/天/周）更新UI"""
+        if selected_unit is None:
+            selected_unit = self.unit_var.get()
+
+        if selected_unit == "周":
+            self.weekday_frame.grid(row=5, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+            self.time_frame.grid(row=6, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+        elif selected_unit == "天":
+            self.weekday_frame.grid_forget()
+            self.time_frame.grid(row=6, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+        else:  # 分钟 或 小时
+            self.weekday_frame.grid_forget()
+            self.time_frame.grid_forget()
 
     def browse_folder(self, entry_widget):
         folder = filedialog.askdirectory()
@@ -279,26 +364,53 @@ class App(ctk.CTk):
 
         # 加载该笔记已有的配置
         schedule_info = self.config_manager.get_note_schedule(self.selected_note)
-        if schedule_info:
-            self.mode_var.set(schedule_info.get("mode", "light"))
-            self.entry_rule.delete(0, tk.END)
-            self.entry_rule.insert(0, schedule_info.get("schedule", ""))
+        self.parse_and_load_schedule_rule(schedule_info)
+
+    def parse_and_load_schedule_rule(self, schedule_info):
+        """解析存储的规则字符串并更新GUI"""
+        if not schedule_info or "schedule" not in schedule_info:
+            self.reset_schedule_gui()
+            return
+
+        self.mode_var.set(schedule_info.get("mode", "light"))
+        rule = schedule_info.get("schedule", "")
+
+        # 解析 interval: every(5) -> 5, every() -> 1
+        interval_match = re.search(r"every\((\d*)\)", rule)
+        self.interval_var.set(interval_match.group(1) if interval_match and interval_match.group(1) else "1")
+
+        # 解析 unit: .minutes, .hours, .days, .weeks
+        unit_match = re.search(r"\.(" + "|".join(self.unit_map.values()) + r")", rule)
+        if unit_match and unit_match.group(1) in self.unit_map_rev:
+            self.unit_var.set(self.unit_map_rev[unit_match.group(1)])
         else:
-            # 清空旧的显示
-            self.mode_var.set("light")
-            self.entry_rule.delete(0, tk.END)
+            self.unit_var.set("天")  # 默认
+
+        # 解析 weekday: .monday, .tuesday ...
+        weekday_match = re.search(r"\.(" + "|".join(self.weekday_map.values()) + r")", rule)
+        if weekday_match and weekday_match.group(1) in self.weekday_map_rev:
+            self.weekday_var.set(self.weekday_map_rev[weekday_match.group(1)])
+        else:
+            self.weekday_var.set("")  # 清空
+
+        # 解析 time: .at("10:30")
+        time_match = re.search(r"at\(['\"](\d{1,2}:\d{2})['\"]\)", rule)
+        if time_match:
+            hour, minute = time_match.group(1).split(":")
+            self.hour_var.set(f"{int(hour):02d}")
+            self.minute_var.set(f"{int(minute):02d}")
+        else:
+            self.hour_var.set("10")
+            self.minute_var.set("30")
+
+        self.on_unit_change()  # 根据解析结果更新UI
 
     def on_path_entry_focus_out(self, event=None):
         """当路径输入框失去焦点时触发保存，并根据情况刷新笔记列表。"""
-        # 检查当前数据文件夹路径与输入框中的路径是否不同
         current_data_folder = self.config_manager.get_setting("data_folder", "")
         new_data_folder = self.entry_data_folder.get()
-
-        # 无论如何都保存所有三个路径设置
         self.save_gui_settings()
-
-        # 仅当数据文件夹路径实际发生改变时才刷新笔记列表
-        if event.widget == self.entry_data_folder and current_data_folder != new_data_folder:
+        if event and event.widget == self.entry_data_folder and current_data_folder != new_data_folder:
             logger.info("数据文件夹路径已更改，刷新笔记列表。")
             self.refresh_notes_list()
 
@@ -307,14 +419,46 @@ class App(ctk.CTk):
             messagebox.showwarning("警告", "请先从左侧选择一个笔记。")
             return
 
-        rule = self.entry_rule.get().strip()
-        if not rule:
-            messagebox.showwarning("警告", "调度规则不能为空。")
+        # 从GUI组件构建规则字符串
+        try:
+            interval = int(self.interval_var.get())
+            if interval <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning("警告", "频率间隔必须是一个正整数。")
             return
+
+        unit_key = self.unit_var.get()
+        unit_val = self.unit_map[unit_key]
+
+        rule_parts = []
+        # every(5) or every()
+        rule_parts.append(f"every({interval if interval > 1 else ''})")
+
+        # .monday, .tuesday etc.
+        if unit_key == "周":
+            weekday_key = self.weekday_var.get()
+            if not weekday_key:
+                messagebox.showwarning("警告", "选择“周”为单位时，必须选择具体是周几。")
+                return
+            rule_parts.append(f".{self.weekday_map[weekday_key]}")
+
+        # .minutes, .hours, .day (singular for day)
+        # The schedule library is flexible with singular/plural, but we'll be consistent.
+        if unit_key != "周":
+            rule_parts.append(f".{unit_val[:-1] if unit_val.endswith('s') else unit_val}")  # e.g., minutes -> minute
+
+        # .at("HH:MM")
+        if unit_key in ["天", "周"]:
+            hour = self.hour_var.get()
+            minute = self.minute_var.get()
+            rule_parts.append(f".at('{hour}:{minute}')")
+
+        final_rule = "".join(rule_parts)
 
         schedule_info = {
             "mode": self.mode_var.get(),
-            "schedule": rule
+            "schedule": final_rule
         }
         self.config_manager.set_note_schedule(self.selected_note, schedule_info)
         messagebox.showinfo("成功", f"已保存 '{self.selected_note}' 的提醒设置。")
@@ -327,7 +471,7 @@ class App(ctk.CTk):
 
         if messagebox.askyesno("确认", f"确定要清除 '{self.selected_note}' 的所有提醒设置吗？"):
             self.config_manager.set_note_schedule(self.selected_note, None)  # 传入None来删除
-            self.on_note_select()  # 刷新显示
+            self.reset_schedule_gui()
             messagebox.showinfo("成功", "已清除设置。")
             self.scheduler_service.reload_schedules()
 
@@ -337,7 +481,6 @@ class App(ctk.CTk):
         self.config_manager.set_setting("autostart", enable)
 
     def on_window_resize(self, event=None):
-        # 我们只在主窗口上响应事件
         if event and event.widget == self:
             self.config_manager.set_setting("window_size", [self.winfo_width(), self.winfo_height()])
 
@@ -363,22 +506,18 @@ class App(ctk.CTk):
 
     def setup_tray_icon(self):
         """创建并运行系统托盘图标"""
-        # 尝试找到一个图标文件，如果没有就使用默认的
         try:
-            # 在打包后，资源文件可能在 sys._MEIPASS
             base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-            icon_path = os.path.join(base_path, 'icon.png')  # 假设你有一个icon.png
+            icon_path = os.path.join(base_path, 'icon.png')
             image = Image.open(icon_path)
         except Exception:
-            logger.warning(f"{icon_path} not found, using a default image.")
+            logger.warning(f"图标文件 'icon.png' 未找到, 将使用默认图标。")
             image = Image.new('RGB', (64, 64), 'blue')
 
         menu = (pystray.MenuItem('显示窗口', self.show_window, default=True),
                 pystray.MenuItem('退出', self.quit_app))
 
         self.tray_icon = pystray.Icon("name", image, "TFInformer", menu)
-
-        # 在一个独立的线程中运行托盘图标，以防阻塞主GUI线程
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
 
 
