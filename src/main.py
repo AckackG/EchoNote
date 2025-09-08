@@ -1,20 +1,21 @@
 #!/user/bin/env python3
 # -*- coding: utf-8 -*-
-import customtkinter as ctk
-import tkinter as tk
-from tkinter import filedialog, messagebox
 import os
 import sys
-from loguru import logger
-from PIL import Image
-import pystray
 import threading
+import tkinter as tk
+from tkinter import filedialog, messagebox
 
+import customtkinter as ctk
+import pystray
+from PIL import Image
+from loguru import logger
+
+import startup
 # 导入我们自己的模块
 from config_manager import ConfigManager
 from note_manager import NoteManager
 from scheduler_service import SchedulerService
-import startup
 
 # --- 全局配置 ---
 ctk.set_appearance_mode("System")  # Modes: "System" (default), "Dark", "Light"
@@ -22,6 +23,8 @@ ctk.set_default_color_theme("blue")  # Themes: "blue" (default), "green", "dark-
 
 # --- 日志配置 ---
 log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs', 'app.log')
+# 如果日志目录不存在，则创建它
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
 logger.add(log_path, rotation="10 MB", retention="7 days", encoding="utf-8", level="INFO")
 
 
@@ -41,14 +44,19 @@ class App(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self.hide_window)  # 关闭窗口时隐藏而非退出
         self.bind("<Configure>", self.on_window_resize)  # 绑定窗口大小改变事件
 
-        # --- 主框架布局 ---
-        self.grid_columnconfigure(1, weight=1)
+        # --- 主框架布局 (修改为单列以容纳PanedWindow) ---
+        self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # --- 左侧笔记列表框架 ---
-        self.left_frame = ctk.CTkFrame(self, width=250, corner_radius=0)
-        self.left_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
+        # --- 新增：创建可拖动的窗格 ---
+        # 使用 tk.PanedWindow 作为容器，并设置样式以匹配主题
+        self.paned_window = tk.PanedWindow(self, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, bg="#2b2b2b", sashwidth=5, opaqueresize=False)
+        self.paned_window.grid(row=0, column=0, sticky="nsew")
+
+        # --- 左侧笔记列表框架 (父容器改为 paned_window) ---
+        self.left_frame = ctk.CTkFrame(self.paned_window, corner_radius=0)
         self.left_frame.grid_rowconfigure(1, weight=1)
+        self.left_frame.grid_columnconfigure(0, weight=1)  # 确保内部组件可以缩放
 
         self.label_notes = ctk.CTkLabel(self.left_frame, text="笔记列表", font=ctk.CTkFont(size=16, weight="bold"))
         self.label_notes.grid(row=0, column=0, padx=20, pady=(20, 10))
@@ -61,14 +69,17 @@ class App(ctk.CTk):
         self.refresh_button = ctk.CTkButton(self.left_frame, text="刷新笔记", command=self.refresh_notes_list)
         self.refresh_button.grid(row=2, column=0, padx=20, pady=10)
 
-        # --- 右侧主内容框架 ---
-        self.right_frame = ctk.CTkFrame(self)
-        self.right_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
-        self.right_frame.grid_columnconfigure(1, weight=1)
+        # 将左侧框架添加到 PanedWindow，并设置初始宽度和最小宽度
+        self.paned_window.add(self.left_frame, width=250, minsize=150)
+
+        # --- 右侧主内容框架 (父容器改为 paned_window) ---
+        self.right_frame = ctk.CTkFrame(self.paned_window)
+        self.right_frame.grid_columnconfigure(0, weight=1)  # 为内部网格配置权重
+        self.right_frame.grid_rowconfigure(1, weight=1)  # 允许调度框架扩展
 
         # --- 设置区域 ---
         self.settings_frame = ctk.CTkFrame(self.right_frame)
-        self.settings_frame.grid(row=0, column=0, columnspan=4, sticky="ew", pady=(0, 20))
+        self.settings_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 10))
         self.settings_frame.grid_columnconfigure(1, weight=1)
 
         # 数据文件夹
@@ -116,9 +127,8 @@ class App(ctk.CTk):
 
         # --- 调度配置区域 ---
         self.schedule_frame = ctk.CTkFrame(self.right_frame)
-        self.schedule_frame.grid(row=1, column=0, columnspan=3, sticky="nsew")
+        self.schedule_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
         self.schedule_frame.grid_columnconfigure(1, weight=1)
-        self.schedule_frame.grid_rowconfigure(1, weight=1)
 
         self.label_schedule_title = ctk.CTkLabel(self.schedule_frame, text="提醒设置 (请先在左侧选择一个笔记)",
                                                  font=ctk.CTkFont(size=14))
@@ -143,6 +153,9 @@ class App(ctk.CTk):
         self.btn_clear_schedule = ctk.CTkButton(self.schedule_frame, text="清除此笔记的设置",
                                                 command=self.clear_current_schedule, fg_color="transparent",
                                                 border_width=2)
+
+        # 将右侧框架添加到 PanedWindow，并设置最小宽度
+        self.paned_window.add(self.right_frame, minsize=400)
 
         # --- 初始化 ---
         self.load_settings_to_gui()
@@ -192,10 +205,15 @@ class App(ctk.CTk):
         self.browse_file(self.entry_img_editor)
 
     def open_folder(self, path):
-        """打开指定路径的文件夹"""
+        """打开指定路径的文件夹（跨平台兼容）"""
         try:
             if os.path.exists(path):
-                os.startfile(path)
+                if sys.platform == "win32":
+                    os.startfile(path)
+                elif sys.platform == "darwin":  # macOS
+                    os.system(f'open "{path}"')
+                else:  # Linux
+                    os.system(f'xdg-open "{path}"')
             else:
                 messagebox.showerror("错误", f"路径不存在: {path}")
         except Exception as e:
@@ -351,8 +369,8 @@ class App(ctk.CTk):
             base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
             icon_path = os.path.join(base_path, 'icon.png')  # 假设你有一个icon.png
             image = Image.open(icon_path)
-        except FileNotFoundError:
-            logger.warning("icon.png not found, using a default image.")
+        except Exception:
+            logger.warning(f"{icon_path} not found, using a default image.")
             image = Image.new('RGB', (64, 64), 'blue')
 
         menu = (pystray.MenuItem('显示窗口', self.show_window, default=True),
