@@ -8,6 +8,13 @@ import subprocess
 from loguru import logger
 from win10toast_click import ToastNotifier
 
+class MyToastNotifier(ToastNotifier):
+    def __init__(self):
+        super().__init__()
+
+    def on_destroy(self, hwnd, msg, wparam, lparam):
+        super().on_destroy(hwnd, msg, wparam, lparam)
+        return 0
 
 class SchedulerService:
     def __init__(self, config_manager, note_manager):
@@ -15,7 +22,7 @@ class SchedulerService:
         self.note_manager = note_manager
         self.stop_event = threading.Event()
         self.thread = None
-        self.toaster = ToastNotifier()
+        self.toaster = MyToastNotifier()
 
     def _run_continuously(self):
         """后台线程持续运行schedule任务"""
