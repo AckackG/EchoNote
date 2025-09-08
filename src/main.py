@@ -198,7 +198,7 @@ class App(ctk.CTk):
                                              values=[f"{h:02d}" for h in range(24)])
         self.label_time_sep = ctk.CTkLabel(self.time_frame, text=":")
         self.option_minute = ctk.CTkOptionMenu(self.time_frame, variable=self.minute_var,
-                                               values=[f"{m:02d}" for m in range(60)])
+                                               values=[f"{m:02d}" for m in range(0,60,5)])
 
         # 保存与清除按钮
         self.btn_save_schedule = ctk.CTkButton(self.schedule_frame, text="保存此笔记的设置",
