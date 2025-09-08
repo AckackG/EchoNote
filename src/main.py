@@ -35,7 +35,7 @@ class App(ctk.CTk):
         self.tray_icon = None
 
         # --- 窗口配置 ---
-        self.title("定期信息提示系统")
+        self.title("TFInformer")
         window_size = self.config_manager.get_setting("window_size", [900, 700])
         self.geometry(f"{window_size[0]}x{window_size[1]}")
         self.protocol("WM_DELETE_WINDOW", self.hide_window)  # 关闭窗口时隐藏而非退出
@@ -68,7 +68,7 @@ class App(ctk.CTk):
 
         # --- 设置区域 ---
         self.settings_frame = ctk.CTkFrame(self.right_frame)
-        self.settings_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 20))
+        self.settings_frame.grid(row=0, column=0, columnspan=4, sticky="ew", pady=(0, 20))
         self.settings_frame.grid_columnconfigure(1, weight=1)
 
         # 数据文件夹
@@ -79,7 +79,10 @@ class App(ctk.CTk):
         self.entry_data_folder.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_data = ctk.CTkButton(self.settings_frame, text="浏览", width=80,
                                              command=self.browse_data_folder)
-        self.btn_browse_data.grid(row=0, column=2, padx=10, pady=10)
+        self.btn_browse_data.grid(row=0, column=2, padx=(10, 5), pady=10)
+        self.btn_open_data_folder = ctk.CTkButton(self.settings_frame, text="打开", width=80,
+                                                  command=self.open_data_folder)
+        self.btn_open_data_folder.grid(row=0, column=3, padx=(5, 10), pady=10)
 
         # MD编辑器
         self.label_md_editor = ctk.CTkLabel(self.settings_frame, text="MD编辑器:")
@@ -88,7 +91,10 @@ class App(ctk.CTk):
         self.entry_md_editor.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
         self.entry_md_editor.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_md = ctk.CTkButton(self.settings_frame, text="浏览", width=80, command=self.browse_md_editor)
-        self.btn_browse_md.grid(row=1, column=2, padx=10, pady=10)
+        self.btn_browse_md.grid(row=1, column=2, padx=(10, 5), pady=10)
+        self.btn_open_md_folder = ctk.CTkButton(self.settings_frame, text="打开", width=80,
+                                                command=self.open_md_editor_folder)
+        self.btn_open_md_folder.grid(row=1, column=3, padx=(5, 10), pady=10)
 
         # 图片编辑器
         self.label_img_editor = ctk.CTkLabel(self.settings_frame, text="图片查看器:")
@@ -97,7 +103,10 @@ class App(ctk.CTk):
         self.entry_img_editor.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
         self.entry_img_editor.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_img = ctk.CTkButton(self.settings_frame, text="浏览", width=80, command=self.browse_img_editor)
-        self.btn_browse_img.grid(row=2, column=2, padx=10, pady=10)
+        self.btn_browse_img.grid(row=2, column=2, padx=(10, 5), pady=10)
+        self.btn_open_img_folder = ctk.CTkButton(self.settings_frame, text="打开", width=80,
+                                                 command=self.open_img_editor_folder)
+        self.btn_open_img_folder.grid(row=2, column=3, padx=(5, 10), pady=10)
 
         # 开机自启
         self.autostart_var = ctk.BooleanVar(value=startup.is_autostart_enabled())
@@ -181,6 +190,43 @@ class App(ctk.CTk):
 
     def browse_img_editor(self):
         self.browse_file(self.entry_img_editor)
+
+    def open_folder(self, path):
+        """打开指定路径的文件夹"""
+        try:
+            if os.path.exists(path):
+                os.startfile(path)
+            else:
+                messagebox.showerror("错误", f"路径不存在: {path}")
+        except Exception as e:
+            logger.error(f"打开文件夹失败: {e}")
+            messagebox.showerror("错误", f"无法打开文件夹: {str(e)}")
+
+    def open_data_folder(self):
+        """打开数据文件夹"""
+        folder_path = self.entry_data_folder.get()
+        if folder_path:
+            self.open_folder(folder_path)
+        else:
+            messagebox.showwarning("警告", "请先设置数据文件夹路径")
+
+    def open_md_editor_folder(self):
+        """打开MD编辑器所在文件夹"""
+        editor_path = self.entry_md_editor.get()
+        if editor_path:
+            folder_path = os.path.dirname(editor_path)
+            self.open_folder(folder_path)
+        else:
+            messagebox.showwarning("警告", "请先设置MD编辑器路径")
+
+    def open_img_editor_folder(self):
+        """打开图片编辑器所在文件夹"""
+        editor_path = self.entry_img_editor.get()
+        if editor_path:
+            folder_path = os.path.dirname(editor_path)
+            self.open_folder(folder_path)
+        else:
+            messagebox.showwarning("警告", "请先设置图片查看器路径")
 
     def load_settings_to_gui(self):
         self.entry_data_folder.insert(0, self.config_manager.get_setting("data_folder", ""))
@@ -312,7 +358,7 @@ class App(ctk.CTk):
         menu = (pystray.MenuItem('显示窗口', self.show_window, default=True),
                 pystray.MenuItem('退出', self.quit_app))
 
-        self.tray_icon = pystray.Icon("name", image, "定期信息提示系统", menu)
+        self.tray_icon = pystray.Icon("name", image, "TFInformer", menu)
 
         # 在一个独立的线程中运行托盘图标，以防阻塞主GUI线程
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
