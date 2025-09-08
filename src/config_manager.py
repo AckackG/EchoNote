@@ -12,7 +12,9 @@ class ConfigManager:
                 "md_editor_path": "",
                 "img_editor_path": "",
                 "autostart": False,
-                "window_size": [900, 700]
+                "window_size": [900, 700],
+                "window_position": [100, 100],
+                "pane_width": 250
             },
             "notes_schedule": {}
         }

@@ -45,9 +45,10 @@ class App(ctk.CTk):
         # --- 窗口配置 ---
         self.title("TFInformer")
         window_size = self.config_manager.get_setting("window_size", [900, 700])
-        self.geometry(f"{window_size[0]}x{window_size[1]}")
+        window_pos = self.config_manager.get_setting("window_position", [100, 100])
+        self.geometry(f"{window_size[0]}x{window_size[1]}+{window_pos[0]}+{window_pos[1]}")
         self.protocol("WM_DELETE_WINDOW", self.hide_window)  # 关闭窗口时隐藏而非退出
-        self.bind("<Configure>", self.on_window_resize)  # 绑定窗口大小改变事件
+        self.bind("<Configure>", self.on_window_configure)  # 绑定窗口大小和位置改变事件
 
         # --- 主框架布局 (修改为单列以容纳PanedWindow) ---
         self.grid_columnconfigure(0, weight=1)
@@ -73,11 +74,22 @@ class App(ctk.CTk):
         self.notes_listbox.grid(row=1, column=0, sticky='nsew', padx=10, pady=10)
         self.notes_listbox.bind("<<ListboxSelect>>", self.on_note_select)
 
-        self.refresh_button = ctk.CTkButton(self.left_frame, text="刷新笔记", command=self.refresh_notes_list)
-        self.refresh_button.grid(row=2, column=0, padx=20, pady=10)
+        # --- 左侧底部按钮框架 ---
+        self.left_bottom_frame = ctk.CTkFrame(self.left_frame, fg_color="transparent")
+        self.left_bottom_frame.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        self.left_bottom_frame.grid_columnconfigure(0, weight=1)
+        self.left_bottom_frame.grid_columnconfigure(1, weight=1)
+
+        self.refresh_button = ctk.CTkButton(self.left_bottom_frame, text="刷新笔记", command=self.refresh_notes_list)
+        self.refresh_button.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+
+        self.btn_open_data_folder = ctk.CTkButton(self.left_bottom_frame, text="打开",
+                                                  command=self.open_data_folder)
+        self.btn_open_data_folder.grid(row=0, column=1, padx=(5, 0), sticky="ew")
 
         # 将左侧框架添加到 PanedWindow，并设置初始宽度和最小宽度
-        self.paned_window.add(self.left_frame, width=250, minsize=150)
+        pane_width = self.config_manager.get_setting("pane_width", 250)
+        self.paned_window.add(self.left_frame, width=pane_width, minsize=150)
 
         # --- 右侧主内容框架 (父容器改为 paned_window) ---
         self.right_frame = ctk.CTkFrame(self.paned_window)
@@ -97,10 +109,7 @@ class App(ctk.CTk):
         self.entry_data_folder.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_data = ctk.CTkButton(self.settings_frame, text="浏览", width=80,
                                              command=self.browse_data_folder)
-        self.btn_browse_data.grid(row=0, column=2, padx=(10, 5), pady=10)
-        self.btn_open_data_folder = ctk.CTkButton(self.settings_frame, text="打开", width=80,
-                                                  command=self.open_data_folder)
-        self.btn_open_data_folder.grid(row=0, column=3, padx=(5, 10), pady=10)
+        self.btn_browse_data.grid(row=0, column=2, padx=(10, 10), pady=10)
 
         # MD编辑器
         self.label_md_editor = ctk.CTkLabel(self.settings_frame, text="MD编辑器:")
@@ -109,10 +118,7 @@ class App(ctk.CTk):
         self.entry_md_editor.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
         self.entry_md_editor.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_md = ctk.CTkButton(self.settings_frame, text="浏览", width=80, command=self.browse_md_editor)
-        self.btn_browse_md.grid(row=1, column=2, padx=(10, 5), pady=10)
-        self.btn_open_md_folder = ctk.CTkButton(self.settings_frame, text="打开", width=80,
-                                                command=self.open_md_editor_folder)
-        self.btn_open_md_folder.grid(row=1, column=3, padx=(5, 10), pady=10)
+        self.btn_browse_md.grid(row=1, column=2, padx=(10, 10), pady=10)
 
         # 图片编辑器
         self.label_img_editor = ctk.CTkLabel(self.settings_frame, text="图片查看器:")
@@ -121,10 +127,7 @@ class App(ctk.CTk):
         self.entry_img_editor.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
         self.entry_img_editor.bind("<FocusOut>", self.on_path_entry_focus_out)
         self.btn_browse_img = ctk.CTkButton(self.settings_frame, text="浏览", width=80, command=self.browse_img_editor)
-        self.btn_browse_img.grid(row=2, column=2, padx=(10, 5), pady=10)
-        self.btn_open_img_folder = ctk.CTkButton(self.settings_frame, text="打开", width=80,
-                                                 command=self.open_img_editor_folder)
-        self.btn_open_img_folder.grid(row=2, column=3, padx=(5, 10), pady=10)
+        self.btn_browse_img.grid(row=2, column=2, padx=(10, 10), pady=10)
 
         # 开机自启
         self.autostart_var = ctk.BooleanVar(value=startup.is_autostart_enabled())
@@ -157,10 +160,14 @@ class App(ctk.CTk):
         # --- 提醒模式 ---
         self.label_mode = ctk.CTkLabel(self.schedule_frame, text="提醒模式:")
         self.mode_var = ctk.StringVar(value="light")
-        self.radio_light = ctk.CTkRadioButton(self.schedule_frame, text="轻度提醒 (系统通知)", variable=self.mode_var,
+
+        self.mode_frame = ctk.CTkFrame(self.schedule_frame, fg_color="transparent")
+        self.radio_light = ctk.CTkRadioButton(self.mode_frame, text="轻度提醒 (系统通知)", variable=self.mode_var,
                                               value="light")
-        self.radio_popup = ctk.CTkRadioButton(self.schedule_frame, text="弹窗提醒 (打开文件)", variable=self.mode_var,
+        self.radio_light.pack(side="left", padx=(10, 5), pady=5)
+        self.radio_popup = ctk.CTkRadioButton(self.mode_frame, text="弹窗提醒", variable=self.mode_var,
                                               value="popup")
+        self.radio_popup.pack(side="left", padx=5, pady=5)
 
         # --- 调度规则构建器 ---
         self.label_rule_header = ctk.CTkLabel(self.schedule_frame, text="提醒规则:")
@@ -200,12 +207,20 @@ class App(ctk.CTk):
         self.option_minute = ctk.CTkOptionMenu(self.time_frame, variable=self.minute_var,
                                                values=[f"{m:02d}" for m in range(0,60,5)])
 
-        # 保存与清除按钮
-        self.btn_save_schedule = ctk.CTkButton(self.schedule_frame, text="保存此笔记的设置",
-                                               command=self.save_current_schedule)
-        self.btn_clear_schedule = ctk.CTkButton(self.schedule_frame, text="清除此笔记的设置",
+        # --- 按钮区域 ---
+        self.button_frame = ctk.CTkFrame(self.schedule_frame, fg_color="transparent")
+        self.btn_save_schedule = ctk.CTkButton(self.button_frame, text="保存此笔记设置",
+                                               command=self.save_current_schedule, fg_color="green")
+        self.btn_save_schedule.pack(side="left", padx=(0, 10))
+
+        self.btn_open_note = ctk.CTkButton(self.button_frame, text="打开文件",
+                                           command=self.open_note_with_editor)
+        self.btn_open_note.pack(side="left", padx=(0, 10))
+
+        self.btn_clear_schedule = ctk.CTkButton(self.button_frame, text="清除此笔记设置",
                                                 command=self.clear_current_schedule,
-                                                fg_color="transparent", border_width=2)
+                                                fg_color="red")
+        self.btn_clear_schedule.pack(side="left")
 
         # --- 布局规则构建器 ---
         self.label_every.grid(row=0, column=0, padx=(0, 5), pady=5)
@@ -232,19 +247,16 @@ class App(ctk.CTk):
 
     def hide_schedule_widgets(self):
         self.label_mode.grid_forget()
-        self.radio_light.grid_forget()
-        self.radio_popup.grid_forget()
+        self.mode_frame.grid_forget()
         self.label_rule_header.grid_forget()
         self.rule_builder_frame.grid_forget()
         self.weekday_frame.grid_forget()
         self.time_frame.grid_forget()
-        self.btn_save_schedule.grid_forget()
-        self.btn_clear_schedule.grid_forget()
+        self.button_frame.grid_forget()
 
     def show_schedule_widgets(self):
         self.label_mode.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
-        self.radio_light.grid(row=2, column=0, columnspan=2, padx=20, pady=5, sticky="w")
-        self.radio_popup.grid(row=2, column=2, columnspan=2, padx=10, pady=5, sticky="w")
+        self.mode_frame.grid(row=2, column=0, columnspan=4, padx=10, pady=5, sticky="w")
 
         self.label_rule_header.grid(row=3, column=0, columnspan=2, padx=10, pady=(10, 0), sticky="w")
         self.rule_builder_frame.grid(row=4, column=0, columnspan=4, padx=10, pady=0, sticky="w")
@@ -252,8 +264,7 @@ class App(ctk.CTk):
         # 动态显示的组件由 on_unit_change 控制
         self.on_unit_change()
 
-        self.btn_save_schedule.grid(row=7, column=0, columnspan=2, padx=10, pady=20, sticky="w")
-        self.btn_clear_schedule.grid(row=7, column=2, columnspan=2, padx=10, pady=20, sticky="w")
+        self.button_frame.grid(row=7, column=0, columnspan=4, padx=10, pady=20, sticky="w")
 
     def on_unit_change(self, selected_unit=None):
         """根据选择的单位（分钟/小时/天/周）更新UI"""
@@ -318,23 +329,26 @@ class App(ctk.CTk):
         else:
             messagebox.showwarning("警告", "请先设置数据文件夹路径")
 
-    def open_md_editor_folder(self):
-        """打开MD编辑器所在文件夹"""
-        editor_path = self.entry_md_editor.get()
-        if editor_path:
-            folder_path = os.path.dirname(editor_path)
-            self.open_folder(folder_path)
-        else:
-            messagebox.showwarning("警告", "请先设置MD编辑器路径")
+    def open_note_with_editor(self):
+        """使用配置的编辑器打开当前选中的笔记"""
+        if not hasattr(self, 'selected_note'):
+            messagebox.showwarning("警告", "请先从左侧选择一个笔记。")
+            return
 
-    def open_img_editor_folder(self):
-        """打开图片编辑器所在文件夹"""
-        editor_path = self.entry_img_editor.get()
-        if editor_path:
-            folder_path = os.path.dirname(editor_path)
-            self.open_folder(folder_path)
-        else:
-            messagebox.showwarning("警告", "请先设置图片查看器路径")
+        data_folder = self.config_manager.get_setting("data_folder")
+        if not data_folder:
+            logger.error("无法打开文件，因为数据文件夹未设置。")
+            messagebox.showerror("错误", "数据文件夹未设置。")
+            return
+
+        file_path = os.path.join(data_folder, self.selected_note)
+        if not os.path.exists(file_path):
+            logger.error(f"无法打开文件，文件不存在: {file_path}")
+            messagebox.showerror("错误", f"文件不存在: {self.selected_note}")
+            return
+
+        # 调用调度服务中的现有方法来打开文件
+        self.scheduler_service.open_file_with_editor(self.selected_note, file_path)
 
     def load_settings_to_gui(self):
         self.entry_data_folder.insert(0, self.config_manager.get_setting("data_folder", ""))
@@ -403,7 +417,18 @@ class App(ctk.CTk):
         if unit_match and unit_match.group(1) in self.unit_map_rev:
             self.unit_var.set(self.unit_map_rev[unit_match.group(1)])
         else:
-            self.unit_var.set("天")  # 默认
+            # 兼容旧的单数形式
+            unit_match_singular = re.search(r"\.(minute|hour|day|week)", rule)
+            if unit_match_singular:
+                 # 转换为复数形式以匹配map
+                singular_unit = unit_match_singular.group(1)
+                plural_unit = singular_unit + 's' if singular_unit not in ['day', 'week'] else singular_unit + ('s' if singular_unit == 'week' else 's')
+                if plural_unit in self.unit_map_rev:
+                    self.unit_var.set(self.unit_map_rev[plural_unit])
+                else:
+                    self.unit_var.set("天") # 默认
+            else:
+                self.unit_var.set("天")  # 默认
 
         # 解析 weekday: .monday, .tuesday ...
         weekday_match = re.search(r"\.(" + "|".join(self.weekday_map.values()) + r")", rule)
@@ -454,6 +479,9 @@ class App(ctk.CTk):
         # every(5) or every()
         rule_parts.append(f"every({interval if interval > 1 else ''})")
 
+        # .minutes, .hours, .days (plural)
+        rule_parts.append(f".{unit_val}")
+
         # .monday, .tuesday etc.
         if unit_key == "周":
             weekday_key = self.weekday_var.get()
@@ -461,11 +489,6 @@ class App(ctk.CTk):
                 messagebox.showwarning("警告", "选择“周”为单位时，必须选择具体是周几。")
                 return
             rule_parts.append(f".{self.weekday_map[weekday_key]}")
-
-        # .minutes, .hours, .day (singular for day)
-        # The schedule library is flexible with singular/plural, but we'll be consistent.
-        if unit_key != "周":
-            rule_parts.append(f".{unit_val[:-1] if unit_val.endswith('s') else unit_val}")  # e.g., minutes -> minute
 
         # .at("HH:MM")
         if unit_key in ["天", "周"]:
@@ -480,7 +503,6 @@ class App(ctk.CTk):
             "schedule": final_rule
         }
         self.config_manager.set_note_schedule(self.selected_note, schedule_info)
-        messagebox.showinfo("成功", f"已保存 '{self.selected_note}' 的提醒设置。")
 
         # --- 修改：保存后更新颜色 ---
         self._update_listbox_colors()
@@ -494,7 +516,6 @@ class App(ctk.CTk):
         if messagebox.askyesno("确认", f"确定要清除 '{self.selected_note}' 的所有提醒设置吗？"):
             self.config_manager.set_note_schedule(self.selected_note, None)  # 传入None来删除
             self.reset_schedule_gui()
-            messagebox.showinfo("成功", "已清除设置。")
 
             # --- 修改：清除后更新颜色 ---
             self._update_listbox_colors()
@@ -505,12 +526,23 @@ class App(ctk.CTk):
         startup.set_autostart(enable)
         self.config_manager.set_setting("autostart", enable)
 
-    def on_window_resize(self, event=None):
-        if event and event.widget == self:
+    def _save_geometry(self):
+        """内部方法，用于保存窗口几何信息，不依赖事件对象"""
+        # 避免在窗口初始化过程中的无效尺寸
+        if self.winfo_width() > 50 and self.winfo_height() > 50:
             self.config_manager.set_setting("window_size", [self.winfo_width(), self.winfo_height()])
+            self.config_manager.set_setting("window_position", [self.winfo_x(), self.winfo_y()])
+            # PanedWindow的sash位置是相对于窗口的，我们保存左侧窗格的宽度更稳定
+            self.config_manager.set_setting("pane_width", self.left_frame.winfo_width())
+
+    def on_window_configure(self, event=None):
+        """由<Configure>事件绑定的回调函数"""
+        if event and event.widget == self:
+            self._save_geometry()
 
     def hide_window(self):
         """隐藏窗口到系统托盘"""
+        self._save_geometry() # 保存最后的位置
         self.withdraw()
         if self.tray_icon is None or not self.tray_icon.visible:
             self.setup_tray_icon()
@@ -524,6 +556,7 @@ class App(ctk.CTk):
     def quit_app(self, icon, item):
         """完全退出应用程序"""
         logger.info("正在退出应用程序...")
+        self._save_geometry() # 保存最后的位置
         icon.stop()
         self.scheduler_service.stop()
         self.quit()
