@@ -8,6 +8,7 @@ import subprocess
 from loguru import logger
 from win10toast_click import ToastNotifier
 
+
 class MyToastNotifier(ToastNotifier):
     def __init__(self):
         super().__init__()
@@ -15,6 +16,7 @@ class MyToastNotifier(ToastNotifier):
     def on_destroy(self, hwnd, msg, wparam, lparam):
         super().on_destroy(hwnd, msg, wparam, lparam)
         return 0
+
 
 class SchedulerService:
     def __init__(self, config_manager, note_manager):
@@ -51,19 +53,33 @@ class SchedulerService:
         schedule.clear()
         logger.info("正在重新加载所有调度任务...")
         all_schedules = self.config_manager.config.get('notes_schedule', {})
+
         for filename, schedule_info in all_schedules.items():
-            # 这里简化处理，实际项目中需要一个更健壮的解析器
-            # 例如： "every().day.at('10:30')"
-            # 注意：eval有安全风险，但在受控环境下（我们自己生成的配置）是可接受的
             try:
-                job_str = schedule_info.get("schedule")
+                schedule_rules = schedule_info.get("schedule")
                 mode = schedule_info.get("mode")
-                if job_str and mode:
-                    # 使用 eval 来动态执行 schedule 的链式调用
-                    # 例如 eval("schedule.every(5).seconds")
-                    job = eval(f"schedule.{job_str}")
+                if not schedule_rules or not mode:
+                    continue
+
+                # **--- 修改开始 ---**
+                # 检查任务规则是单个字符串还是列表（针对多选星期）
+                # 并将其统一处理为列表
+                if isinstance(schedule_rules, str):
+                    rules_to_process = [schedule_rules]
+                elif isinstance(schedule_rules, list):
+                    rules_to_process = schedule_rules
+                else:
+                    logger.warning(f"为 '{filename}' 跳过无效的调度规则格式: {schedule_rules}")
+                    continue
+
+                # 遍历所有规则并创建任务
+                for rule_str in rules_to_process:
+                    if not rule_str: continue  # 跳过空规则
+                    job = eval(f"schedule.{rule_str}")
                     job.do(self.trigger_reminder, filename=filename, mode=mode)
-                    logger.info(f"已为 '{filename}' 添加任务: {job_str}, 模式: {mode}")
+                    logger.info(f"已为 '{filename}' 添加任务: {rule_str}, 模式: {mode}")
+                # **--- 修改结束 ---**
+
             except Exception as e:
                 logger.error(f"为 '{filename}' 添加任务失败，配置: '{schedule_info}'. 错误: {e}")
 
@@ -98,9 +114,9 @@ class SchedulerService:
                 threaded=True,
                 callback_on_click=lambda: self.open_file_with_editor(filename, file_path)
             )
-            logger.info(f"已发送轻度提醒 for '{filename}'")
+            logger.info(f"已发送系统通知 for '{filename}'")
         except Exception as e:
-            logger.error(f"发送轻度提醒失败: {e}")
+            logger.error(f"发送系统通知失败: {e}")
 
     def show_popup_reminder(self, filename, file_path):
         """显示弹窗提醒 (打开编辑器)"""
