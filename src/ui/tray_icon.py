@@ -1,6 +1,4 @@
-#!/user/bin/env python3
-# -*- coding: utf-8 -*-
-#!/user/bin/env python3
+#!/user/bin-env python3
 # -*- coding: utf-8 -*-
 import os
 import sys
@@ -26,13 +24,27 @@ class TrayIconManager:
         if self.tray_icon and self.tray_icon.visible:
             return
 
-        try:
-            base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-            # The icon is in the root directory, so we go up one level from the 'ui' directory
+        # --- 修改的核心逻辑 ---
+        # 判断当前是在开发环境还是在打包后的环境中
+        if getattr(sys, 'frozen', False):
+            # 如果是打包后的环境 (sys.frozen = True)
+            # PyInstaller 会将资源解压到 sys._MEIPASS 指定的临时目录
+            base_path = sys._MEIPASS
+            # 我们的 icon.png 被打包到了根目录，所以直接拼接
+            icon_path = os.path.join(base_path, 'icon.png')
+        else:
+            # 如果是开发环境
+            # 路径相对于当前文件 (tray_icon.py)
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            # icon.png 在 src 目录下，即 ui 目录的上一级
             icon_path = os.path.join(base_path, '..', 'icon.png')
+        # --- 修改结束 ---
+
+        try:
+            logger.info(f"正在从以下路径加载托盘图标: {icon_path}")
             image = Image.open(icon_path)
-        except Exception:
-            logger.warning(f"图标文件 'icon.png' 未找到, 将使用默认图标。")
+        except Exception as e:
+            logger.warning(f"图标文件 '{icon_path}' 未找到或加载失败, 将使用默认图标。错误: {e}")
             image = Image.new('RGB', (64, 64), 'blue')
 
         menu = (pystray.MenuItem('显示窗口', self.show_window, default=True),
