@@ -1,0 +1,13 @@
+colorama==0.4.6
+customtkinter==5.2.2
+darkdetect==0.8.0
+loguru==0.7.3
+packaging==25.0
+pillow==11.3.0
+pypiwin32==223
+pystray==0.19.5
+pywin32==311
+schedule==1.2.2
+six==1.17.0
+win10toast-click==0.1.2
+win32_setctime==1.2.0
