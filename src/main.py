@@ -30,6 +30,10 @@ logger.add(log_path, rotation="10 MB", retention="7 days", encoding="utf-8", lev
 
 
 class App(ctk.CTk):
+    # --- 新增：定义颜色常量 ---
+    DEFAULT_BG_COLOR = "#2b2b2b"
+    SCHEDULED_BG_COLOR = "#264C2D"  # 一个比较柔和的深绿色
+
     def __init__(self, config_manager, note_manager, scheduler_service):
         super().__init__()
 
@@ -63,7 +67,8 @@ class App(ctk.CTk):
         self.label_notes = ctk.CTkLabel(self.left_frame, text="笔记列表", font=ctk.CTkFont(size=16, weight="bold"))
         self.label_notes.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-        self.notes_listbox = tk.Listbox(self.left_frame, bg="#2b2b2b", fg="white", selectbackground="#1f6aa5",
+        self.notes_listbox = tk.Listbox(self.left_frame, bg=self.DEFAULT_BG_COLOR, fg="white",
+                                        selectbackground="#1f6aa5",
                                         borderwidth=0, highlightthickness=0, font=("Segoe UI", 12))
         self.notes_listbox.grid(row=1, column=0, sticky='nsew', padx=10, pady=10)
         self.notes_listbox.bind("<<ListboxSelect>>", self.on_note_select)
@@ -348,8 +353,22 @@ class App(ctk.CTk):
         self.notes_listbox.delete(0, tk.END)
         for note in notes:
             self.notes_listbox.insert(tk.END, note)
+
+        # --- 修改：刷新后更新颜色 ---
+        self._update_listbox_colors()
+
         self.hide_schedule_widgets()
         self.label_schedule_title.configure(text="提醒设置 (请先在左侧选择一个笔记)")
+
+    # --- 新增：更新列表颜色的辅助函数 ---
+    def _update_listbox_colors(self):
+        """遍历列表中的所有项目，并根据是否存在调度来设置背景色"""
+        all_notes = self.notes_listbox.get(0, tk.END)
+        for i, note_name in enumerate(all_notes):
+            if self.config_manager.get_note_schedule(note_name):
+                self.notes_listbox.itemconfig(i, bg=self.SCHEDULED_BG_COLOR)
+            else:
+                self.notes_listbox.itemconfig(i, bg=self.DEFAULT_BG_COLOR)
 
     def on_note_select(self, event=None):
         selection_indices = self.notes_listbox.curselection()
@@ -462,6 +481,9 @@ class App(ctk.CTk):
         }
         self.config_manager.set_note_schedule(self.selected_note, schedule_info)
         messagebox.showinfo("成功", f"已保存 '{self.selected_note}' 的提醒设置。")
+
+        # --- 修改：保存后更新颜色 ---
+        self._update_listbox_colors()
         self.scheduler_service.reload_schedules()
 
     def clear_current_schedule(self):
@@ -473,6 +495,9 @@ class App(ctk.CTk):
             self.config_manager.set_note_schedule(self.selected_note, None)  # 传入None来删除
             self.reset_schedule_gui()
             messagebox.showinfo("成功", "已清除设置。")
+
+            # --- 修改：清除后更新颜色 ---
+            self._update_listbox_colors()
             self.scheduler_service.reload_schedules()
 
     def toggle_autostart(self):
