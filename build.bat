@@ -3,7 +3,7 @@ chcp 65001 > nul  & rem 设置代码页为 UTF-8，防止中文乱码
 
 echo.
 echo ==========================================================
-echo      Periodic Info Reminder - PyInstaller 打包脚本
+echo      EchoNote - PyInstaller 打包脚本
 echo ==========================================================
 echo.
 
@@ -20,7 +20,7 @@ rem 定义输出目录
 set OUTPUT_DIR=dist
 
 rem 定义生成的可执行文件名
-set EXE_NAME=TFInformer
+set EXE_NAME=EchoNote
 
 rem 设置为 1 隐藏控制台窗口 (GUI程序必备)
 set WINDOWED_MODE=1

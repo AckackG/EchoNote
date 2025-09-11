@@ -1,4 +1,4 @@
-# Periodic Info Reminder (周期性信息提醒工具)
+# EchoNote (周期性信息提醒工具)
 
 一个轻量级的、基于文件的热点信息周期性提醒工具，旨在替代那些用于临时记忆的纸质便签。
 
@@ -6,16 +6,17 @@
 
 ## 目录 (Table of Contents)
 
-- [Periodic Info Reminder (周期性信息提醒工具)](#periodic-info-reminder-周期性信息提醒工具)
+- [EchoNote (周期性信息提醒工具)](#echonote-周期性信息提醒工具)
   - [目录 (Table of Contents)](#目录-table-of-contents)
   - [面向用户 (For Users)](#面向用户-for-users)
     - [项目简介：它解决了什么问题？](#项目简介它解决了什么问题)
     - [核心功能](#核心功能)
+    - [如何使用 (How to Use)](#如何使用-how-to-use)
     - [快速上手指南](#快速上手指南)
     - [重要提醒：它不是什么？](#重要提醒它不是什么)
-    - [面向开发者 (For Developers)](#面向开发者-for-developers)
-      - [项目架构](#项目架构)
-      - [主要依赖](#主要依赖)
+  - [面向开发者 (For Developers)](#面向开发者-for-developers)
+    - [项目架构](#项目架构)
+    - [主要依赖](#主要依赖)
 ---
 
 ## 面向用户 (For Users)
@@ -36,6 +37,24 @@
 *   **两种提醒模式**: “系统通知”（右下角弹窗）或“直接显示”（用编辑器打开）。
 *   **自定义编辑器**: 为不同文件类型指定你喜欢的程序。
 *   **开机自启 & 系统托盘**: 设置后即可忘记，它会在后台安静工作。
+
+### 如何使用 (How to Use)
+
+我们提供两种使用方式：
+
+**方式一：直接下载 (推荐)**
+
+1.  访问项目的 [**Releases**](https://github.com/your-username/your-repo/releases) 页面。
+2.  下载最新的 `TFInformer.exe` 文件。
+3.  双击运行即可，无需安装 Python 或任何依赖。
+
+**方式二：手动构建 (适合开发者)**
+
+1.  确保你的电脑已安装 Python 环境。
+2.  克隆本仓库到本地：`git clone https://github.com/your-username/your-repo.git`
+3.  进入项目根目录，通过 `requirements.txt` 安装所有依赖：`pip install -r requirements.txt`
+4.  运行 `build.bat` 脚本。
+5.  等待脚本执行完毕，你会在 `dist` 文件夹下找到生成的 `TFInformer.exe` 文件。
 
 ### 快速上手指南
 
@@ -59,11 +78,11 @@
 ---
 
 
-### 面向开发者 (For Developers)
+## 面向开发者 (For Developers)
 
 **或者直接丢给AI。**
 
-#### 项目架构
+### 项目架构
 
 本项目采用模块化的结构，核心逻辑与UI分离，易于维护和扩展。
 
@@ -94,7 +113,7 @@
     *   `tray_icon.py`
         *   **职责**：管理程序的系统托盘图标和菜单，处理最小化到托盘和从托盘恢复窗口的逻辑。
 
-#### 主要依赖
+### 主要依赖
 
 *   `customtkinter`: 用于构建现代风格的GUI界面。
 *   `schedule`: 一个轻量级的、人类友好的任务调度库。

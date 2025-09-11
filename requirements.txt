@@ -11,3 +11,4 @@ schedule==1.2.2
 six==1.17.0
 win10toast-click==0.1.2
 win32_setctime==1.2.0
+winshell
