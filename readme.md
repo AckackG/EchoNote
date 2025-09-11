@@ -45,7 +45,7 @@
 **方式一：直接下载 (推荐)**
 
 1.  访问项目的 [**Releases**](https://github.com/your-username/your-repo/releases) 页面。
-2.  下载最新的 `TFInformer.exe` 文件。
+2.  下载最新的 `Echonote.exe` 文件。
 3.  双击运行即可，无需安装 Python 或任何依赖。
 
 **方式二：手动构建 (适合开发者)**
@@ -54,7 +54,7 @@
 2.  克隆本仓库到本地：`git clone https://github.com/your-username/your-repo.git`
 3.  进入项目根目录，通过 `requirements.txt` 安装所有依赖：`pip install -r requirements.txt`
 4.  运行 `build.bat` 脚本。
-5.  等待脚本执行完毕，你会在 `dist` 文件夹下找到生成的 `TFInformer.exe` 文件。
+5.  等待脚本执行完毕，你会在 `dist` 文件夹下找到生成的 `Echonote.exe` 文件。
 
 ### 快速上手指南
 

@@ -30,10 +30,12 @@ class App(ctk.CTk):
         self._save_geometry_after_id = None
 
         # --- 窗口配置 ---
-        self.title("TFInformer")
+        self.title("Echonote")
         window_size = self.config_manager.get_setting("window_size", [900, 700])
         window_pos = self.config_manager.get_setting("window_position", [100, 100])
-        self.geometry(f"{window_size[0]}x{window_size[1]}+{window_pos[0]}+{window_pos[1]}")
+        self.geometry(
+            f"{window_size[0]}x{window_size[1]}+{window_pos[0]}+{window_pos[1]}"
+        )
 
         # --- 系统托盘管理器 ---
         self.tray_manager = TrayIconManager(self)
@@ -45,8 +47,14 @@ class App(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # --- 可拖动的窗格 ---
-        self.paned_window = tk.PanedWindow(self, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, bg="#2b2b2b", sashwidth=5,
-                                           opaqueresize=False)
+        self.paned_window = tk.PanedWindow(
+            self,
+            orient=tk.HORIZONTAL,
+            sashrelief=tk.RAISED,
+            bg="#2b2b2b",
+            sashwidth=5,
+            opaqueresize=False,
+        )
         self.paned_window.grid(row=0, column=0, sticky="nsew")
 
         # --- 创建并添加左侧面板 ---
@@ -85,7 +93,9 @@ class App(ctk.CTk):
         self._update_listbox_colors()
 
         self.schedule_frame.hide_schedule_widgets()
-        self.schedule_frame.label_schedule_title.configure(text="提醒设置 (请先在左侧选择一个笔记)")
+        self.schedule_frame.label_schedule_title.configure(
+            text="提醒设置 (请先在左侧选择一个笔记)"
+        )
         self.selected_note = None
 
     def _update_listbox_colors(self):
@@ -105,7 +115,9 @@ class App(ctk.CTk):
         selected_index = selection_indices[0]
         self.selected_note = self.left_frame.notes_listbox.get(selected_index)
 
-        self.schedule_frame.label_schedule_title.configure(text=f"设置: {self.selected_note}")
+        self.schedule_frame.label_schedule_title.configure(
+            text=f"设置: {self.selected_note}"
+        )
         self.schedule_frame.show_schedule_widgets()
 
         schedule_info = self.config_manager.get_note_schedule(self.selected_note)
@@ -139,7 +151,7 @@ class App(ctk.CTk):
             self.config_manager.set_geometry_settings(
                 size=[self.winfo_width(), self.winfo_height()],
                 position=[self.winfo_x(), self.winfo_y()],
-                pane_width=self.left_frame.winfo_width()
+                pane_width=self.left_frame.winfo_width(),
             )
 
     # --- 修改结束 ---
