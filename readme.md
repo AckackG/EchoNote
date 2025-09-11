@@ -6,15 +6,16 @@
 
 ## 目录 (Table of Contents)
 
-*   [**面向用户 (For Users)**](#面向用户-for-users)
-    *   [项目简介：它解决了什么问题？](#项目简介它解决了什么问题)
-    *   [核心功能](#核心功能)
-    *   [快速上手指南](#快速上手指南)
-    *   [重要提醒：它不是什么？](#重要提醒它不是什么)
-*   [**面向开发者 (For Developers)**](#面向开发者-for-developers)
-    *   [项目架构](#项目架构)
-    *   [主要依赖](#主要依赖)
-    *   [如何添加新功能（给未来的自己）](#如何添加新功能给未来的自己)
+- [Periodic Info Reminder (周期性信息提醒工具)](#periodic-info-reminder-周期性信息提醒工具)
+  - [目录 (Table of Contents)](#目录-table-of-contents)
+  - [面向用户 (For Users)](#面向用户-for-users)
+    - [项目简介：它解决了什么问题？](#项目简介它解决了什么问题)
+    - [核心功能](#核心功能)
+    - [快速上手指南](#快速上手指南)
+    - [重要提醒：它不是什么？](#重要提醒它不是什么)
+    - [面向开发者 (For Developers)](#面向开发者-for-developers)
+      - [项目架构](#项目架构)
+      - [主要依赖](#主要依赖)
 ---
 
 ## 面向用户 (For Users)
@@ -101,38 +102,3 @@
 *   `loguru`: 一个功能强大且易于使用的日志记录库。
 *   `winshell`: 用于方便地访问Windows的特殊文件夹（如“启动”文件夹）。
 *   `pystray`: 用于创建和管理系统托盘图标。
-
-#### 如何添加新功能（给未来的自己）
-
-这是一个为你未来回顾项目时准备的快速指南。
-
-*   **如果要修改UI布局或添加新的UI组件...**
-    *   **定位**：`ui/` 目录下的 `app_main.py` (整体布局), `left_panel.py`, `settings_panel.py`, `schedule_panel.py` (具体面板)。
-    *   **思路**：找到对应的面板文件，使用 `customtkinter` 的组件进行添加和布局。如果新组件需要与后端逻辑交互，请在 `app_main.py` 中定义相应的处理方法，并将其作为回调函数传递给UI组件。
-
-*   **如果要支持一种新的提醒规则（例如“每月一次”)...**
-    *   **定位**：`ui/schedule_panel.py` 和 `scheduler_service.py`。
-    *   **步骤**：
-        1.  在 `schedule_panel.py` 的 `_init_schedule_builder` 中添加新的UI选项（例如一个新的OptionMenu值）。
-        2.  修改 `on_unit_change` 方法来控制新选项与其他UI组件的显隐关系。
-        3.  修改 `save_current_schedule` 方法，为新规则生成一个 `schedule` 库能识别的字符串 (例如 `.monthly`)。
-        4.  修改 `parse_and_load_schedule_rule` 方法，使其能够反向解析这个新规则并正确地在UI上显示出来。
-        5.  `scheduler_service.py` 的 `reload_schedules` 方法由于使用了 `eval()`，大概率无需修改即可支持新的规则字符串，但最好进行测试。
-
-*   **如果要改变提醒的行为（例如，增加一种新的提醒模式）...**
-    *   **定位**：`scheduler_service.py` 和 `ui/schedule_panel.py`。
-    *   **步骤**：
-        1.  在 `scheduler_service.py` 中实现新的提醒方法，例如 `show_new_reminder()`。
-        2.  修改 `trigger_reminder` 方法，增加一个新的 `elif mode == 'new_mode'` 分支来调用你的新方法。
-        3.  在 `ui/schedule_panel.py` 的 `_init_schedule_builder` 中添加一个新的 `CTkRadioButton` 作为新模式的选项。
-        4.  确保 `save_current_schedule` 和 `parse_and_load_schedule_rule` 能正确处理这个新的 `mode` 值。
-
-*   **如果要添加一个新的全局设置...**
-    *   **定位**：`config_manager.py` 和 `ui/settings_panel.py`。
-    *   **步骤**：
-        1.  在 `config_manager.py` 的 `default_config` 中添加新的设置项及其默认值。
-        2.  在 `ui/settings_panel.py` 中添加对应的UI输入控件（如 `CTkEntry` 或 `CTkCheckBox`）。
-        3.  修改 `load_settings_to_gui` 方法，从配置中读取值并显示在UI上。
-        4.  修改 `save_gui_settings` 方法，将UI上的新值保存到配置中。
-        5.  在需要使用这个设置的地方，通过 `self.app.config_manager.get_setting("your_new_setting")` 来获取它。
-````
