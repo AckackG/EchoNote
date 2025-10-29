@@ -57,16 +57,17 @@ class SchedulePanel(ctk.CTkFrame):
         """创建用于构建调度规则的GUI组件"""
         # --- 提醒模式 ---
         self.label_mode = ctk.CTkLabel(self, text="提醒模式:")
-        self.mode_var = ctk.StringVar(value="light")
+        self.mode_var = ctk.StringVar(value="popup")
 
         self.mode_frame = ctk.CTkFrame(self, fg_color="transparent")
         # 1. 修改名称
-        self.radio_light = ctk.CTkRadioButton(self.mode_frame, text="系统通知", variable=self.mode_var,
-                                              value="light")
-        self.radio_light.pack(side="left", padx=(10, 5), pady=5)
         self.radio_popup = ctk.CTkRadioButton(self.mode_frame, text="直接显示", variable=self.mode_var,
                                               value="popup")
-        self.radio_popup.pack(side="left", padx=5, pady=5)
+        self.radio_popup.pack(side="left", padx=(10, 5), pady=5)
+        self.radio_light = ctk.CTkRadioButton(self.mode_frame, text="系统通知", variable=self.mode_var,
+                                              value="light")
+        self.radio_light.pack(side="left", padx=5, pady=5)
+
 
         # 1. 添加Hover提示
         Tooltip(self.radio_light, text="通过操作系统发送一条可点击的通知消息，持续60秒。")
@@ -82,7 +83,7 @@ class SchedulePanel(ctk.CTkFrame):
 
         self.unit_map = {"分钟": "minutes", "小时": "hours", "天": "days", "周": "weeks"}
         self.unit_map_rev = {v: k for k, v in self.unit_map.items()}
-        self.unit_var = ctk.StringVar(value="天")
+        self.unit_var = ctk.StringVar(value="周")
         self.option_unit = ctk.CTkOptionMenu(self.rule_builder_frame, variable=self.unit_var,
                                              values=list(self.unit_map.keys()), command=self.on_unit_change)
 
@@ -143,9 +144,9 @@ class SchedulePanel(ctk.CTkFrame):
 
     def reset_schedule_gui(self):
         """将调度GUI重置为默认状态"""
-        self.mode_var.set("light")
+        self.mode_var.set("popup")
         self.interval_var.set("1")
-        self.unit_var.set("天")
+        self.unit_var.set("周")
         # 清空所有星期复选框
         for var in self.weekday_vars.values():
             var.set(False)
@@ -200,7 +201,7 @@ class SchedulePanel(ctk.CTkFrame):
         if not schedule_info or "schedule" not in schedule_info:
             return
 
-        self.mode_var.set(schedule_info.get("mode", "light"))
+        self.mode_var.set(schedule_info.get("mode", "popup"))
         rule = schedule_info.get("schedule", "")
 
         # 情况1: 新的多选星期规则 (列表形式)
