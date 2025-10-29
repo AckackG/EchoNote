@@ -28,7 +28,8 @@ class NoteManager:
                 if ext.lower() in self.SUPPORTED_MD_EXTS or ext.lower() in self.SUPPORTED_IMG_EXTS:
                     self.notes.append(filename)
 
-        self.notes.sort()
+        # 根据文件的创建时间进行升序排序
+        self.notes.sort(key=lambda f: os.path.getctime(os.path.join(self.data_folder, f)))
         logger.info(f"扫描完成，共找到 {len(self.notes)} 个笔记。")
         return self.notes
 
