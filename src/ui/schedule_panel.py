@@ -44,6 +44,7 @@ class SchedulePanel(ctk.CTkFrame):
     def __init__(self, master, app):
         super().__init__(master)
         self.app = app
+        self.analysis_window = None  # 用于追踪分析窗口的实例
 
         self.grid_columnconfigure(0, weight=1)
 
@@ -157,21 +158,45 @@ class SchedulePanel(ctk.CTkFrame):
 
         self.on_unit_change()
 
+    def _on_analysis_window_close(self):
+        """当分析窗口关闭时，重置追踪变量"""
+        if self.analysis_window:
+            self.analysis_window.destroy()
+        self.analysis_window = None
+
     def _show_analysis_window(self, grid_data):
-        """创建一个新窗口来显示任务分布热力图"""
+        """创建一个新窗口来显示任务分布热力图，如果已存在则置顶"""
+        # 如果窗口已存在，则将其置顶并返回，不再创建新窗口
+        if self.analysis_window is not None and self.analysis_window.winfo_exists():
+            self.analysis_window.lift()
+            self.analysis_window.focus()
+            return
+
         win = ctk.CTkToplevel(self)
+        self.analysis_window = win  # 追踪新创建的窗口实例
         win.title("任务分布热力图")
-        win.geometry("540x320")
+
+        # --- 修改开始: 调整窗口位置计算逻辑 ---
+        win_width = 540
+        win_height = 320
+        # 获取主窗口的位置和大小
+        main_win_x = self.app.winfo_x()
+        main_win_y = self.app.winfo_y()
+        main_win_width = self.app.winfo_width()
+        # 计算新窗口的位置，使其右上角与主窗口的右上角对齐
+        pos_x = main_win_x + main_win_width - win_width
+        pos_y = main_win_y
+        win.geometry(f"{win_width}x{win_height}+{pos_x}+{pos_y}")
+        # --- 修改结束 ---
+
         win.transient(self.app)
-        win.grab_set()
+        win.protocol("WM_DELETE_WINDOW", self._on_analysis_window_close)
 
         main_frame = ctk.CTkFrame(win)
         main_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
         days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-        # 新的表头，明确表示时间范围
         headers = ["非工作", "8-9", "9-10", "10-11", "午休", "15-16", "16-17", "17-18"]
-        # 为每个列定义宽度
         column_widths = [60, 40, 40, 40, 60, 40, 40, 40]
 
         # 创建时间表头
