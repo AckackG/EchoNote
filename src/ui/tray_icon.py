@@ -17,7 +17,7 @@ class TrayIconManager:
         """从系统托盘恢复窗口"""
         icon.stop()
         self.tray_icon = None
-        self.app.after(0, self.app.show_and_analyze)
+        self.app.after(0, self.app.deiconify)
 
     def setup_tray_icon(self):
         """创建并运行系统托盘图标"""

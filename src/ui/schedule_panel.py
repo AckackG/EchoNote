@@ -142,14 +142,14 @@ class SchedulePanel(ctk.CTkFrame):
         self.option_minute.grid(row=0, column=3, padx=0, pady=5)
 
     def run_smart_analysis(self):
-        """执行智能分析：显示任务分布图并推荐空闲时间点"""
-        if self.app.task_distribution_grid is None:
-            self.app.analyze_task_distribution()
+        """执行智能分析：计算、显示任务分布图并推荐空闲时间点"""
+        # 1. 仅在点击时才进行计算
+        grid = self.app.task_analyzer.analyze_weekly_schedule()
 
-        grid = self.app.task_distribution_grid
+        # 2. 显示可视化窗口
         self._show_analysis_window(grid)
 
-        # 寻找最佳时间点并设置为默认值
+        # 3. 寻找最佳时间点并设置为默认值
         day_en, hour_str = self.app.task_analyzer.find_least_busy_slot(grid)
 
         self.reset_schedule_gui()
@@ -158,7 +158,7 @@ class SchedulePanel(ctk.CTkFrame):
             var.set(False)
         self.weekday_vars[day_en].set(True)
         self.hour_var.set(hour_str)
-        self.minute_var.set("00")  # 推荐整点
+        self.minute_var.set("30")  # 推荐 xx:30
 
         self.on_unit_change()
 
@@ -166,7 +166,7 @@ class SchedulePanel(ctk.CTkFrame):
         """创建一个新窗口来显示任务分布热力图"""
         win = ctk.CTkToplevel(self)
         win.title("任务分布热力图")
-        win.geometry("860x320")
+        win.geometry("600x320")
         win.transient(self.app)
         win.grab_set()
 
@@ -174,11 +174,13 @@ class SchedulePanel(ctk.CTkFrame):
         main_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
         days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-        hours = [f"{h:02d}" for h in range(24)]
+        headers = ["非工作", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17"]
 
-        # 创建时间表头 (00, 01, ..., 23)
-        for i, hour in enumerate(hours):
-            label = ctk.CTkLabel(main_frame, text=hour, font=("Segoe UI", 10), width=30)
+        # 创建时间表头
+        for i, header in enumerate(headers):
+            # 让“非工作”列更宽
+            col_width = 60 if i == 0 else 35
+            label = ctk.CTkLabel(main_frame, text=header, font=("Segoe UI", 10), width=col_width)
             label.grid(row=0, column=i + 1, padx=1, pady=1)
 
         # 创建星期表头
@@ -186,43 +188,34 @@ class SchedulePanel(ctk.CTkFrame):
             label = ctk.CTkLabel(main_frame, text=day, font=("Segoe UI", 12))
             label.grid(row=i + 1, column=0, padx=5, pady=2, sticky="e")
 
-        # 找到任务数最大值，用于计算颜色深度
-        max_val = max(max(row) for row in grid_data) if any(any(row) for row in grid_data) else 1
-
         # 创建热力图的单元格
         for day_idx in range(7):
-            for hour_idx in range(24):
-                count = grid_data[day_idx][hour_idx]
-                # 根据任务数计算颜色
-                color = self._get_color_for_value(count, max_val)
+            for col_idx in range(len(headers)):
+                count = grid_data[day_idx][col_idx]
+                color = self._get_color_for_value(count)
+                col_width = 60 if col_idx == 0 else 35
 
-                cell_frame = ctk.CTkFrame(main_frame, fg_color=color, width=30, height=30, corner_radius=3,
+                cell_frame = ctk.CTkFrame(main_frame, fg_color=color, width=col_width, height=30, corner_radius=3,
                                           border_width=0)
-                cell_frame.grid(row=day_idx + 1, column=hour_idx + 1, padx=1, pady=1)
+                cell_frame.grid(row=day_idx + 1, column=col_idx + 1, padx=1, pady=1)
                 cell_frame.grid_propagate(False)
 
-                # 在单元格中显示任务数
                 label = ctk.CTkLabel(cell_frame, text=str(count), fg_color="transparent",
-                                     font=("Segoe UI", 10))
+                                     font=("Segoe UI", 10), text_color="black")
                 label.place(relx=0.5, rely=0.5, anchor="center")
 
-    def _get_color_for_value(self, value, max_value):
+    def _get_color_for_value(self, value):
         """根据任务数返回不同的颜色，用于热力图"""
         if value == 0:
-            return "#404040"  # 无任务时的深灰色
-
-        # 将数值归一化到 0-1 之间
-        intensity = min(value / max_value, 1.0) if max_value > 0 else 0
-
-        # 使用一个简单的颜色梯度
-        if intensity <= 0.25:
-            return "#1f5a85"  # 淡蓝色
-        elif intensity <= 0.5:
-            return "#1f6aa5"  # 蓝色
-        elif intensity <= 0.75:
-            return "#2a8bc8"  # 亮蓝色
-        else:
-            return "#4fb0f0"  # 最亮的蓝色
+            return "#606060"  # 灰色
+        elif value == 1:
+            return "#5D9C59"  # 绿色
+        elif value == 2:
+            return "#F0C808"  # 黄色
+        elif value == 3:
+            return "#E57373"  # 粉色
+        else:  # 4 及以上
+            return "#C62828"  # 深红色
 
     def reset_schedule_gui(self):
         """将调度GUI重置为默认状态"""
