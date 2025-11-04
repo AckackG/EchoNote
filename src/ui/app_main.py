@@ -8,6 +8,7 @@ from tkinter import messagebox
 import customtkinter as ctk
 from loguru import logger
 
+from task_analyzer import TaskAnalyzer
 from ui.left_panel import LeftPanel
 from ui.settings_panel import SettingsPanel
 from ui.schedule_panel import SchedulePanel
@@ -26,6 +27,8 @@ class App(ctk.CTk):
         self.note_manager = note_manager
         self.scheduler_service = scheduler_service
         self.selected_note = None
+        self.task_analyzer = TaskAnalyzer(self.config_manager)
+        self.task_distribution_grid = None
 
         self._save_geometry_after_id = None
 
@@ -82,6 +85,12 @@ class App(ctk.CTk):
         self.settings_frame.load_settings_to_gui()
         self.refresh_notes_list()
         self.schedule_frame.hide_schedule_widgets()  # 默认隐藏
+        self.analyze_task_distribution()
+
+    def analyze_task_distribution(self):
+        """分析当前所有任务的分布情况"""
+        logger.info("Analyzing task distribution...")
+        self.task_distribution_grid = self.task_analyzer.analyze_weekly_schedule()
 
     def refresh_notes_list(self):
         self.note_manager.data_folder = self.settings_frame.entry_data_folder.get()
@@ -91,6 +100,7 @@ class App(ctk.CTk):
             self.left_frame.notes_listbox.insert(tk.END, note)
 
         self._update_listbox_colors()
+        self.analyze_task_distribution()
 
         self.schedule_frame.hide_schedule_widgets()
         self.schedule_frame.label_schedule_title.configure(
@@ -143,7 +153,6 @@ class App(ctk.CTk):
 
         self.scheduler_service.open_file_with_editor(self.selected_note, file_path)
 
-    # --- 修改开始: 调用新的批量保存方法 ---
     def _save_geometry(self):
         """内部方法，用于保存窗口几何信息"""
         if self.winfo_width() > 50 and self.winfo_height() > 50:
@@ -153,8 +162,6 @@ class App(ctk.CTk):
                 position=[self.winfo_x(), self.winfo_y()],
                 pane_width=self.left_frame.winfo_width(),
             )
-
-    # --- 修改结束 ---
 
     def on_window_configure(self, event=None):
         """由<Configure>事件绑定的回调函数，使用延迟保存以避免过于频繁的写入"""
@@ -173,6 +180,11 @@ class App(ctk.CTk):
         self._save_geometry()
         self.withdraw()
         self.tray_manager.setup_tray_icon()
+
+    def show_and_analyze(self):
+        """显示主窗口并重新分析任务分布"""
+        self.analyze_task_distribution()
+        self.deiconify()
 
     def quit_app_from_tray(self, icon, item):
         """完全退出应用程序"""

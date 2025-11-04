@@ -60,7 +60,6 @@ class SchedulePanel(ctk.CTkFrame):
         self.mode_var = ctk.StringVar(value="popup")
 
         self.mode_frame = ctk.CTkFrame(self, fg_color="transparent")
-        # 1. 修改名称
         self.radio_popup = ctk.CTkRadioButton(self.mode_frame, text="直接显示", variable=self.mode_var,
                                               value="popup")
         self.radio_popup.pack(side="left", padx=(10, 5), pady=5)
@@ -68,8 +67,6 @@ class SchedulePanel(ctk.CTkFrame):
                                               value="light")
         self.radio_light.pack(side="left", padx=5, pady=5)
 
-
-        # 1. 添加Hover提示
         Tooltip(self.radio_light, text="通过操作系统发送一条可点击的通知消息，持续60秒。")
         Tooltip(self.radio_popup, text="直接使用设置好的编辑器打开对应的笔记文件。")
 
@@ -87,14 +84,12 @@ class SchedulePanel(ctk.CTkFrame):
         self.option_unit = ctk.CTkOptionMenu(self.rule_builder_frame, variable=self.unit_var,
                                              values=list(self.unit_map.keys()), command=self.on_unit_change)
 
-        # 2. 星期选择 (修改为多选)
         self.weekday_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.label_weekday = ctk.CTkLabel(self.weekday_frame, text="在:")
         self.weekday_map = {"周一": "monday", "周二": "tuesday", "周三": "wednesday", "周四": "thursday",
                             "周五": "friday", "周六": "saturday", "周日": "sunday"}
         self.weekday_map_rev = {v: k for k, v in self.weekday_map.items()}
 
-        # 使用 CheckBox 实现多选
         self.weekday_vars = {day_en: ctk.BooleanVar() for day_en in self.weekday_map.values()}
         weekday_checkbox_frame = ctk.CTkFrame(self.weekday_frame, fg_color="transparent")
         col = 0
@@ -124,6 +119,10 @@ class SchedulePanel(ctk.CTkFrame):
                                            command=self.app.open_note_with_editor)
         self.btn_open_note.pack(side="left", padx=(0, 10))
 
+        self.btn_smart_analyze = ctk.CTkButton(self.button_frame, text="智能分析",
+                                               command=self.run_smart_analysis)
+        self.btn_smart_analyze.pack(side="left", padx=(0, 10))
+
         self.btn_clear_schedule = ctk.CTkButton(self.button_frame, text="清除此笔记设置",
                                                 command=self.clear_current_schedule,
                                                 fg_color="red")
@@ -141,6 +140,89 @@ class SchedulePanel(ctk.CTkFrame):
         self.option_hour.grid(row=0, column=1, padx=0, pady=5)
         self.label_time_sep.grid(row=0, column=2, padx=5, pady=5)
         self.option_minute.grid(row=0, column=3, padx=0, pady=5)
+
+    def run_smart_analysis(self):
+        """执行智能分析：显示任务分布图并推荐空闲时间点"""
+        if self.app.task_distribution_grid is None:
+            self.app.analyze_task_distribution()
+
+        grid = self.app.task_distribution_grid
+        self._show_analysis_window(grid)
+
+        # 寻找最佳时间点并设置为默认值
+        day_en, hour_str = self.app.task_analyzer.find_least_busy_slot(grid)
+
+        self.reset_schedule_gui()
+        self.unit_var.set("周")
+        for var in self.weekday_vars.values():
+            var.set(False)
+        self.weekday_vars[day_en].set(True)
+        self.hour_var.set(hour_str)
+        self.minute_var.set("00")  # 推荐整点
+
+        self.on_unit_change()
+
+    def _show_analysis_window(self, grid_data):
+        """创建一个新窗口来显示任务分布热力图"""
+        win = ctk.CTkToplevel(self)
+        win.title("任务分布热力图")
+        win.geometry("860x320")
+        win.transient(self.app)
+        win.grab_set()
+
+        main_frame = ctk.CTkFrame(win)
+        main_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+        days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+        hours = [f"{h:02d}" for h in range(24)]
+
+        # 创建时间表头 (00, 01, ..., 23)
+        for i, hour in enumerate(hours):
+            label = ctk.CTkLabel(main_frame, text=hour, font=("Segoe UI", 10), width=30)
+            label.grid(row=0, column=i + 1, padx=1, pady=1)
+
+        # 创建星期表头
+        for i, day in enumerate(days):
+            label = ctk.CTkLabel(main_frame, text=day, font=("Segoe UI", 12))
+            label.grid(row=i + 1, column=0, padx=5, pady=2, sticky="e")
+
+        # 找到任务数最大值，用于计算颜色深度
+        max_val = max(max(row) for row in grid_data) if any(any(row) for row in grid_data) else 1
+
+        # 创建热力图的单元格
+        for day_idx in range(7):
+            for hour_idx in range(24):
+                count = grid_data[day_idx][hour_idx]
+                # 根据任务数计算颜色
+                color = self._get_color_for_value(count, max_val)
+
+                cell_frame = ctk.CTkFrame(main_frame, fg_color=color, width=30, height=30, corner_radius=3,
+                                          border_width=0)
+                cell_frame.grid(row=day_idx + 1, column=hour_idx + 1, padx=1, pady=1)
+                cell_frame.grid_propagate(False)
+
+                # 在单元格中显示任务数
+                label = ctk.CTkLabel(cell_frame, text=str(count), fg_color="transparent",
+                                     font=("Segoe UI", 10))
+                label.place(relx=0.5, rely=0.5, anchor="center")
+
+    def _get_color_for_value(self, value, max_value):
+        """根据任务数返回不同的颜色，用于热力图"""
+        if value == 0:
+            return "#404040"  # 无任务时的深灰色
+
+        # 将数值归一化到 0-1 之间
+        intensity = min(value / max_value, 1.0) if max_value > 0 else 0
+
+        # 使用一个简单的颜色梯度
+        if intensity <= 0.25:
+            return "#1f5a85"  # 淡蓝色
+        elif intensity <= 0.5:
+            return "#1f6aa5"  # 蓝色
+        elif intensity <= 0.75:
+            return "#2a8bc8"  # 亮蓝色
+        else:
+            return "#4fb0f0"  # 最亮的蓝色
 
     def reset_schedule_gui(self):
         """将调度GUI重置为默认状态"""
@@ -175,7 +257,6 @@ class SchedulePanel(ctk.CTkFrame):
         if selected_unit is None:
             selected_unit = self.unit_var.get()
 
-        # 2. 当选择“周”时，隐藏间隔输入框，并锁定值为1
         if selected_unit == "周":
             self.label_every.grid_forget()
             self.entry_interval.grid_forget()
@@ -195,7 +276,6 @@ class SchedulePanel(ctk.CTkFrame):
 
     def parse_and_load_schedule_rule(self, schedule_info):
         """解析存储的规则字符串或列表并更新GUI"""
-        # 先重置为默认状态，再根据规则填充
         self.reset_schedule_gui()
 
         if not schedule_info or "schedule" not in schedule_info:
@@ -204,25 +284,21 @@ class SchedulePanel(ctk.CTkFrame):
         self.mode_var.set(schedule_info.get("mode", "popup"))
         rule = schedule_info.get("schedule", "")
 
-        # 情况1: 新的多选星期规则 (列表形式)
         if isinstance(rule, list) and rule:
             self.unit_var.set("周")
             self.interval_var.set("1")
 
-            # 从第一条规则中解析时间
             time_match = re.search(r"at\(['\"](\d{1,2}:\d{2})['\"]\)", rule[0])
             if time_match:
                 hour, minute = time_match.group(1).split(":")
                 self.hour_var.set(f"{int(hour):02d}")
                 self.minute_var.set(f"{int(minute):02d}")
 
-            # 解析并勾选星期几
             for sub_rule in rule:
                 for day_en in self.weekday_map.values():
                     if f".{day_en}" in sub_rule:
                         self.weekday_vars[day_en].set(True)
 
-        # 情况2: 旧的或非星期的规则 (字符串形式)
         elif isinstance(rule, str) and rule:
             interval_match = re.search(r"every\((\d*)\)", rule)
             self.interval_var.set(interval_match.group(1) if interval_match and interval_match.group(1) else "1")
@@ -233,7 +309,6 @@ class SchedulePanel(ctk.CTkFrame):
             else:
                 self.unit_var.set("天")
 
-            # 兼容旧的单选星期规则
             if self.unit_var.get() == "周":
                 weekday_match = re.search(r"\.(" + "|".join(self.weekday_map.values()) + r")", rule)
                 if weekday_match and weekday_match.group(1) in self.weekday_map_rev:
@@ -245,7 +320,7 @@ class SchedulePanel(ctk.CTkFrame):
                 self.hour_var.set(f"{int(hour):02d}")
                 self.minute_var.set(f"{int(minute):02d}")
         else:
-            return  # 如果规则为空或格式不正确，则不做操作（已重置）
+            return
 
         self.on_unit_change()
 
@@ -256,7 +331,6 @@ class SchedulePanel(ctk.CTkFrame):
 
         unit_key = self.unit_var.get()
 
-        # 对非“周”单位验证间隔输入
         if unit_key != "周":
             try:
                 interval = int(self.interval_var.get())
@@ -266,9 +340,8 @@ class SchedulePanel(ctk.CTkFrame):
                 messagebox.showwarning("警告", "频率间隔必须是一个正整数。")
                 return
         else:
-            interval = 1  # “周”单位间隔固定为1
+            interval = 1
 
-        # 2. 为“周”单位构建多选规则
         if unit_key == "周":
             selected_weekdays = [day_en for day_en, var in self.weekday_vars.items() if var.get()]
             if not selected_weekdays:
@@ -279,11 +352,9 @@ class SchedulePanel(ctk.CTkFrame):
             minute = self.minute_var.get()
             time_part = f".at('{hour}:{minute}')"
 
-            # schedule的值现在是一个列表, 例如: ["every().monday.at('10:30')", "every().wednesday.at('10:30')"]
             rules = [f"every().{day_en}{time_part}" for day_en in selected_weekdays]
             schedule_info = {"mode": self.mode_var.get(), "schedule": rules}
         else:
-            # 其他单位的逻辑保持不变
             unit_val = self.unit_map[unit_key]
             rule_parts = [f"every({interval if interval > 1 else ''})", f".{unit_val}"]
 
