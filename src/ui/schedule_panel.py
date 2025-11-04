@@ -143,13 +143,8 @@ class SchedulePanel(ctk.CTkFrame):
 
     def run_smart_analysis(self):
         """执行智能分析：计算、显示任务分布图并推荐空闲时间点"""
-        # 1. 仅在点击时才进行计算
         grid = self.app.task_analyzer.analyze_weekly_schedule()
-
-        # 2. 显示可视化窗口
         self._show_analysis_window(grid)
-
-        # 3. 寻找最佳时间点并设置为默认值
         day_en, hour_str = self.app.task_analyzer.find_least_busy_slot(grid)
 
         self.reset_schedule_gui()
@@ -158,7 +153,7 @@ class SchedulePanel(ctk.CTkFrame):
             var.set(False)
         self.weekday_vars[day_en].set(True)
         self.hour_var.set(hour_str)
-        self.minute_var.set("30")  # 推荐 xx:30
+        self.minute_var.set("30")
 
         self.on_unit_change()
 
@@ -166,7 +161,7 @@ class SchedulePanel(ctk.CTkFrame):
         """创建一个新窗口来显示任务分布热力图"""
         win = ctk.CTkToplevel(self)
         win.title("任务分布热力图")
-        win.geometry("600x320")
+        win.geometry("540x320")
         win.transient(self.app)
         win.grab_set()
 
@@ -174,13 +169,14 @@ class SchedulePanel(ctk.CTkFrame):
         main_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
         days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-        headers = ["非工作", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17"]
+        # 新的表头，明确表示时间范围
+        headers = ["非工作", "8-9", "9-10", "10-11", "午休", "15-16", "16-17", "17-18"]
+        # 为每个列定义宽度
+        column_widths = [60, 40, 40, 40, 60, 40, 40, 40]
 
         # 创建时间表头
         for i, header in enumerate(headers):
-            # 让“非工作”列更宽
-            col_width = 60 if i == 0 else 35
-            label = ctk.CTkLabel(main_frame, text=header, font=("Segoe UI", 10), width=col_width)
+            label = ctk.CTkLabel(main_frame, text=header, font=("Segoe UI", 10), width=column_widths[i])
             label.grid(row=0, column=i + 1, padx=1, pady=1)
 
         # 创建星期表头
@@ -193,10 +189,9 @@ class SchedulePanel(ctk.CTkFrame):
             for col_idx in range(len(headers)):
                 count = grid_data[day_idx][col_idx]
                 color = self._get_color_for_value(count)
-                col_width = 60 if col_idx == 0 else 35
 
-                cell_frame = ctk.CTkFrame(main_frame, fg_color=color, width=col_width, height=30, corner_radius=3,
-                                          border_width=0)
+                cell_frame = ctk.CTkFrame(main_frame, fg_color=color, width=column_widths[col_idx], height=30,
+                                          corner_radius=3, border_width=0)
                 cell_frame.grid(row=day_idx + 1, column=col_idx + 1, padx=1, pady=1)
                 cell_frame.grid_propagate(False)
 
