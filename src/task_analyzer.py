@@ -67,15 +67,19 @@ class TaskAnalyzer:
                 hour = int(time_match.group(1))
                 column_idx = self._map_hour_to_column(hour)
 
-                is_weekly = False
+                # 检查是否为周任务 (周一至周五)
+                is_weekly_task = False
                 for day_en, day_idx in self.weekday_map.items():
-                    if f".{day_en}" in rule:
+                    if day_idx < 7 and f".{day_en}" in rule:
                         grid[day_idx][column_idx] += 1
-                        is_weekly = True
-                if is_weekly:
+                        is_weekly_task = True
+
+                if is_weekly_task:
                     continue
 
-                if ".days" in rule:
+                # 如果不是周任务，检查是否为“每1天”的日度任务
+                if "every().days" in rule:
+                    # 仅统计周一到周五
                     for day_idx in range(7):
                         grid[day_idx][column_idx] += 1
 
