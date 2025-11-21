@@ -100,11 +100,13 @@ class App(ctk.CTk):
         self.selected_note = None
 
     def _update_listbox_colors(self):
-        """遍历列表中的所有项目，并根据是否存在调度来设置背景色"""
+        """遍历列表中的所有项目，并根据是否存在以及是否启用了调度来设置背景色"""
         # All_notes 包含所有笔记，notes_listbox 可能只包含过滤后的笔记
         # 所以需要通过 all_notes 来获取笔记名称并更新 notes_listbox 的颜色
         for i, note_name in enumerate(self.left_frame.all_notes):
-            if self.config_manager.get_note_schedule(note_name):
+            schedule_info = self.config_manager.get_note_schedule(note_name)
+            # 仅当调度存在且启用时才高亮
+            if schedule_info and schedule_info.get('enable', True):
                 try:
                     # 尝试找到当前笔记在显示列表中的位置并设置颜色
                     idx_in_display = self.left_frame.notes_listbox.get(0, tk.END).index(note_name)
@@ -114,6 +116,7 @@ class App(ctk.CTk):
                     pass
             else:
                 try:
+                    # 找到笔记并恢复默认颜色
                     idx_in_display = self.left_frame.notes_listbox.get(0, tk.END).index(note_name)
                     self.left_frame.notes_listbox.itemconfig(idx_in_display, bg=self.DEFAULT_BG_COLOR)
                 except ValueError:

@@ -35,7 +35,7 @@ class LeftPanel(ctk.CTkFrame):
         self.top_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
         self.top_frame.grid_columnconfigure(0, weight=1)
 
-        self.search_entry = ctk.CTkEntry(self.top_frame, placeholder_text="搜索笔记...", font=ctk.CTkFont(size=14))
+        self.search_entry = ctk.CTkEntry(self.top_frame, placeholder_text="搜索笔记...支持拼音", font=ctk.CTkFont(size=14))
         self.search_entry.grid(row=0, column=0, sticky="ew")
         self.search_entry.bind("<KeyRelease>", self.filter_notes)
 
