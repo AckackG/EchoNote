@@ -126,10 +126,10 @@ class SchedulePanel(ctk.CTkFrame):
                                                command=self.run_smart_analysis)
         self.btn_smart_analyze.pack(side="left", padx=(0, 10))
 
-        self.btn_clear_schedule = ctk.CTkButton(self.button_frame, text="清除此笔记设置",
-                                                command=self.clear_current_schedule,
-                                                fg_color="red")
-        self.btn_clear_schedule.pack(side="left")
+        self.btn_disable_schedule = ctk.CTkButton(self.button_frame, text="禁用此设置",
+                                                   command=self.disable_current_schedule,
+                                                   fg_color="#555555", hover_color="#444444")
+        self.btn_disable_schedule.pack(side="left")
 
         # --- 布局规则构建器 ---
         self.label_every.grid(row=0, column=0, padx=(0, 5), pady=5)
@@ -390,13 +390,13 @@ class SchedulePanel(ctk.CTkFrame):
         self.app._update_listbox_colors()
         self.app.scheduler_service.reload_schedules()
 
-    def clear_current_schedule(self):
+    def disable_current_schedule(self):
         if not self.app.selected_note:
             messagebox.showwarning("警告", "请先从左侧选择一个笔记。")
             return
 
-        if messagebox.askyesno("确认", f"确定要清除 '{self.app.selected_note}' 的所有提醒设置吗？"):
-            self.app.config_manager.set_note_schedule(self.app.selected_note, None)
+        if messagebox.askyesno("确认", f"确定要禁用 '{self.app.selected_note}' 的提醒设置吗？"):
+            self.app.config_manager.disable_note_schedule(self.app.selected_note)
             self.reset_schedule_gui()
             self.app._update_listbox_colors()
             self.app.scheduler_service.reload_schedules()

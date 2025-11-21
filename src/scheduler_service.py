@@ -58,6 +58,11 @@ class SchedulerService:
         all_schedules = self.config_manager.config.get('notes_schedule', {})
 
         for filename, schedule_info in all_schedules.items():
+            # Check if the schedule is enabled, default to True if key doesn't exist
+            if not schedule_info.get('enable', True):
+                logger.info(f"跳过已禁用的笔记提醒: '{filename}'")
+                continue
+                
             try:
                 schedule_rules = schedule_info.get("schedule")
                 mode = schedule_info.get("mode")

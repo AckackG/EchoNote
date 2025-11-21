@@ -78,7 +78,6 @@ class ConfigManager:
         self.config['settings'][key] = value
         self.save_config()
 
-    # --- 修改开始: 添加一个新方法用于批量设置 ---
     def set_geometry_settings(self, size, position, pane_width):
         """
         批量更新窗口几何相关的设置，并只保存一次。
@@ -87,7 +86,6 @@ class ConfigManager:
         self.config['settings']['window_position'] = position
         self.config['settings']['pane_width'] = pane_width
         self.save_config()
-    # --- 修改结束 ---
 
     def get_note_schedule(self, note_filename):
         """获取指定笔记的调度配置"""
@@ -99,8 +97,20 @@ class ConfigManager:
             if note_filename in self.config['notes_schedule']:
                 del self.config['notes_schedule'][note_filename]
         else:
+            # Ensure new/updated schedules are enabled
+            schedule_info['enable'] = True
+            # Preserve existing stats if they exist
+            if note_filename in self.config['notes_schedule'] and 'stats' in self.config['notes_schedule'][note_filename]:
+                schedule_info['stats'] = self.config['notes_schedule'][note_filename]['stats']
             self.config['notes_schedule'][note_filename] = schedule_info
         self.save_config()
+
+    def disable_note_schedule(self, note_filename):
+        """禁用指定笔记的调度，而不是删除它"""
+        if note_filename in self.config['notes_schedule']:
+            self.config['notes_schedule'][note_filename]['enable'] = False
+            self.save_config()
+            logger.info(f"笔记 '{note_filename}' 的提醒设置已被禁用。")
 
     def increment_stat(self, filename: str, stat_key: str):
         """原子性地增加指定笔记的统计数据并保存"""
