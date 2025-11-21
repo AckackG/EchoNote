@@ -71,7 +71,7 @@ class SchedulePanel(ctk.CTkFrame):
         Tooltip(self.radio_light, text="通过操作系统发送一条可点击的通知消息，持续60秒。")
         Tooltip(self.radio_popup, text="直接使用设置好的编辑器打开对应的笔记文件。")
 
-        self.label_shown_count = ctk.CTkLabel(self, text="已提醒: 0 次", font=ctk.CTkFont(size=12))
+        self.label_shown_count = ctk.CTkLabel(self, text="已掌握/已提醒: 0/0 (0%)", font=ctk.CTkFont(size=12))
 
         # --- 调度规则构建器 ---
         self.label_rule_header = ctk.CTkLabel(self, text="提醒规则:")
@@ -296,8 +296,20 @@ class SchedulePanel(ctk.CTkFrame):
         self.reset_schedule_gui()
 
         # Initialize stats display
-        shown_count = schedule_info.get("stats", {}).get("shown_count", 0) if schedule_info else 0
-        self.label_shown_count.configure(text=f"已提醒: {shown_count} 次")
+        stats = schedule_info.get("stats", {}) if schedule_info else {}
+        shown_count = stats.get("shown_count", 0)
+        mastered_count = stats.get("mastered_count", 0)
+
+        if shown_count > 0:
+            ratio = mastered_count / shown_count
+        else:
+            ratio = 0.0
+
+        status_text = f"已掌握/已提醒: {mastered_count}/{shown_count} ({ratio:.0%})"
+
+        # Set text color to green if ratio > 80% and shown_count > 5, otherwise black
+        text_color = "green" if ratio > 0.8 and shown_count > 5 else "black"
+        self.label_shown_count.configure(text=status_text, text_color=text_color)
 
         if not schedule_info or "schedule" not in schedule_info:
             return
