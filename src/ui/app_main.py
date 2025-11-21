@@ -13,6 +13,7 @@ from ui.left_panel import LeftPanel
 from ui.settings_panel import SettingsPanel
 from ui.schedule_panel import SchedulePanel
 from ui.tray_icon import TrayIconManager
+from scheduler_service import SchedulerService # Import SchedulerService
 
 
 class App(ctk.CTk):
@@ -20,12 +21,12 @@ class App(ctk.CTk):
     DEFAULT_BG_COLOR = "#2b2b2b"
     SCHEDULED_BG_COLOR = "#264C2D"  # 一个比较柔和的深绿色
 
-    def __init__(self, config_manager, note_manager, scheduler_service):
+    def __init__(self, config_manager, note_manager):
         super().__init__()
 
         self.config_manager = config_manager
         self.note_manager = note_manager
-        self.scheduler_service = scheduler_service
+        self.scheduler_service = SchedulerService(config_manager, note_manager, self) # Pass self here
         self.selected_note = None
         self.task_analyzer = TaskAnalyzer(self.config_manager)
 
@@ -88,9 +89,7 @@ class App(ctk.CTk):
     def refresh_notes_list(self):
         self.note_manager.data_folder = self.settings_frame.entry_data_folder.get()
         notes = self.note_manager.scan_notes()
-        self.left_frame.notes_listbox.delete(0, tk.END)
-        for note in notes:
-            self.left_frame.notes_listbox.insert(tk.END, note)
+        self.left_frame.update_notes(notes)
 
         self._update_listbox_colors()
 
@@ -102,17 +101,40 @@ class App(ctk.CTk):
 
     def _update_listbox_colors(self):
         """遍历列表中的所有项目，并根据是否存在调度来设置背景色"""
-        all_notes = self.left_frame.notes_listbox.get(0, tk.END)
-        for i, note_name in enumerate(all_notes):
+        # All_notes 包含所有笔记，notes_listbox 可能只包含过滤后的笔记
+        # 所以需要通过 all_notes 来获取笔记名称并更新 notes_listbox 的颜色
+        for i, note_name in enumerate(self.left_frame.all_notes):
             if self.config_manager.get_note_schedule(note_name):
-                self.left_frame.notes_listbox.itemconfig(i, bg=self.SCHEDULED_BG_COLOR)
+                try:
+                    # 尝试找到当前笔记在显示列表中的位置并设置颜色
+                    idx_in_display = self.left_frame.notes_listbox.get(0, tk.END).index(note_name)
+                    self.left_frame.notes_listbox.itemconfig(idx_in_display, bg=self.SCHEDULED_BG_COLOR)
+                except ValueError:
+                    # 如果笔记不在当前显示列表中 (被过滤掉了)，则忽略
+                    pass
             else:
-                self.left_frame.notes_listbox.itemconfig(i, bg=self.DEFAULT_BG_COLOR)
+                try:
+                    idx_in_display = self.left_frame.notes_listbox.get(0, tk.END).index(note_name)
+                    self.left_frame.notes_listbox.itemconfig(idx_in_display, bg=self.DEFAULT_BG_COLOR)
+                except ValueError:
+                    pass
 
     def on_note_select(self, event=None):
         selection_indices = self.left_frame.notes_listbox.curselection()
         if not selection_indices:
-            return
+            # 如果当前没有选中任何项，尝试选中列表的第一项（如果存在）
+            if self.left_frame.notes_listbox.size() > 0:
+                self.left_frame.notes_listbox.selection_set(0)
+                selection_indices = self.left_frame.notes_listbox.curselection()
+                if not selection_indices:
+                    return
+            else:
+                self.selected_note = None
+                self.schedule_frame.hide_schedule_widgets()
+                self.schedule_frame.label_schedule_title.configure(
+                    text="提醒设置 (请先在左侧选择一个笔记)"
+                )
+                return
 
         selected_index = selection_indices[0]
         self.selected_note = self.left_frame.notes_listbox.get(selected_index)

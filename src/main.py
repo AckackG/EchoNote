@@ -36,11 +36,11 @@ if __name__ == "__main__":
     # 初始化核心组件
     config = ConfigManager(config_path='config.json')
     notes = NoteManager(config.get_setting('data_folder'))
-    scheduler = SchedulerService(config, notes)
-
-    # 启动后台调度服务
-    scheduler.start()
 
     # 创建并运行GUI
-    app = App(config, notes, scheduler)
+    app = App(config, notes)
+    
+    # 启动后台调度服务, 放在这里确保App的UI已经初始化完毕，可以接收FeedbackWindow
+    app.scheduler_service.start()
+    
     app.mainloop()

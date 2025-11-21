@@ -71,6 +71,8 @@ class SchedulePanel(ctk.CTkFrame):
         Tooltip(self.radio_light, text="通过操作系统发送一条可点击的通知消息，持续60秒。")
         Tooltip(self.radio_popup, text="直接使用设置好的编辑器打开对应的笔记文件。")
 
+        self.label_shown_count = ctk.CTkLabel(self, text="已提醒: 0 次", font=ctk.CTkFont(size=12))
+
         # --- 调度规则构建器 ---
         self.label_rule_header = ctk.CTkLabel(self, text="提醒规则:")
         self.rule_builder_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -252,6 +254,7 @@ class SchedulePanel(ctk.CTkFrame):
     def hide_schedule_widgets(self):
         self.label_mode.grid_forget()
         self.mode_frame.grid_forget()
+        self.label_shown_count.grid_forget() # Hide the new label
         self.label_rule_header.grid_forget()
         self.rule_builder_frame.grid_forget()
         self.weekday_frame.grid_forget()
@@ -261,6 +264,7 @@ class SchedulePanel(ctk.CTkFrame):
     def show_schedule_widgets(self):
         self.label_mode.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
         self.mode_frame.grid(row=2, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+        self.label_shown_count.grid(row=2, column=2, columnspan=2, padx=10, pady=5, sticky="e") # Show the new label
         self.label_rule_header.grid(row=3, column=0, columnspan=2, padx=10, pady=(10, 0), sticky="w")
         self.rule_builder_frame.grid(row=4, column=0, columnspan=4, padx=10, pady=0, sticky="w")
         self.on_unit_change()
@@ -290,6 +294,10 @@ class SchedulePanel(ctk.CTkFrame):
     def parse_and_load_schedule_rule(self, schedule_info):
         """解析存储的规则字符串或列表并更新GUI"""
         self.reset_schedule_gui()
+
+        # Initialize stats display
+        shown_count = schedule_info.get("stats", {}).get("shown_count", 0) if schedule_info else 0
+        self.label_shown_count.configure(text=f"已提醒: {shown_count} 次")
 
         if not schedule_info or "schedule" not in schedule_info:
             return

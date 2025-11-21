@@ -37,6 +37,22 @@ class ConfigManager:
                         for sub_key, sub_value in value.items():
                             if sub_key not in config[key]:
                                 config[key][sub_key] = sub_value
+
+                # Ensure 'stats' field exists for all notes_schedule entries
+                for note_filename, schedule_info in config['notes_schedule'].items():
+                    if 'stats' not in schedule_info:
+                        schedule_info['stats'] = {
+                            "shown_count": 0,
+                            "mastered_count": 0,
+                            "last_shown": ""
+                        }
+                    else:
+                        if "shown_count" not in schedule_info['stats']:
+                            schedule_info['stats']["shown_count"] = 0
+                        if "mastered_count" not in schedule_info['stats']:
+                            schedule_info['stats']["mastered_count"] = 0
+                        if "last_shown" not in schedule_info['stats']:
+                            schedule_info['stats']["last_shown"] = ""
                 return config
         except (json.JSONDecodeError, IOError) as e:
             logger.error(f"加载配置文件失败: {e}。将使用默认配置。")
@@ -85,3 +101,23 @@ class ConfigManager:
         else:
             self.config['notes_schedule'][note_filename] = schedule_info
         self.save_config()
+
+    def increment_stat(self, filename: str, stat_key: str):
+        """原子性地增加指定笔记的统计数据并保存"""
+        if filename not in self.config['notes_schedule']:
+            logger.warning(f"尝试增加不存在笔记的统计数据: {filename}")
+            return
+        
+        note_schedule = self.config['notes_schedule'][filename]
+        if 'stats' not in note_schedule:
+            note_schedule['stats'] = {"shown_count": 0, "mastered_count": 0, "last_shown": ""}
+        
+        if stat_key in note_schedule['stats']:
+            note_schedule['stats'][stat_key] += 1
+            if stat_key == "shown_count": # only update last_shown when shown_count is incremented
+                import datetime
+                note_schedule['stats']["last_shown"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.save_config()
+            logger.info(f"笔记 '{filename}' 的统计项 '{stat_key}' 已增加。")
+        else:
+            logger.warning(f"笔记 '{filename}' 不存在统计项 '{stat_key}'。")

@@ -8,6 +8,8 @@ import subprocess
 from loguru import logger
 from win10toast_click import ToastNotifier
 
+from ui.feedback_window import FeedbackWindow # Import FeedbackWindow
+
 
 class MyToastNotifier(ToastNotifier):
     def __init__(self):
@@ -19,9 +21,10 @@ class MyToastNotifier(ToastNotifier):
 
 
 class SchedulerService:
-    def __init__(self, config_manager, note_manager):
+    def __init__(self, config_manager, note_manager, app_instance):
         self.config_manager = config_manager
         self.note_manager = note_manager
+        self.app_instance = app_instance # Store app instance to pass to FeedbackWindow
         self.stop_event = threading.Event()
         self.thread = None
         self.toaster = MyToastNotifier()
@@ -88,6 +91,8 @@ class SchedulerService:
     def trigger_reminder(self, filename, mode):
         """根据模式触发提醒"""
         logger.info(f"触发提醒: 文件='{filename}', 模式='{mode}'")
+        self.config_manager.increment_stat(filename, "shown_count")  # 增加提醒次数统计
+        
         data_folder = self.config_manager.get_setting("data_folder")
         if not data_folder:
             logger.error("无法触发提醒，因为数据文件夹未设置。")
@@ -137,5 +142,10 @@ class SchedulerService:
             else:
                 logger.warning(f"编辑器路径未设置或无效，尝试使用系统默认程序打开 '{file_path}'")
                 os.startfile(file_path)
+            
+            # After opening the file, show the feedback window
+            if self.app_instance and self.app_instance.winfo_exists():
+                FeedbackWindow(self.app_instance, self.app_instance, filename)
+
         except Exception as e:
             logger.error(f"打开文件 '{file_path}' 失败: {e}")
