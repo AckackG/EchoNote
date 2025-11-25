@@ -58,7 +58,8 @@ class LeftPanel(ctk.CTkFrame):
         self.btn_open_folder.grid(row=0, column=1, padx=(5, 0), sticky="ew")
 
     def update_notes(self, notes: list):
-        self.all_notes = sorted(notes, key=lambda s: s.lower())
+        folder_path = self.app.settings_frame.entry_data_folder.get()
+        self.all_notes = sorted(notes, key=lambda f: os.path.getctime(os.path.join(folder_path, f)))
         self._display_notes(self.all_notes)
 
     def _display_notes(self, notes: list):
