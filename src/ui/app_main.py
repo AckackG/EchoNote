@@ -168,7 +168,7 @@ class App(ctk.CTk):
             messagebox.showerror("错误", f"文件不存在: {self.selected_note}")
             return
 
-        self.scheduler_service.open_file_with_editor(self.selected_note, file_path)
+        self.scheduler_service.open_file_with_editor(self.selected_note, file_path,False)
 
     def _save_geometry(self):
         """内部方法，用于保存窗口几何信息"""

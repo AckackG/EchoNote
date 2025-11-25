@@ -132,7 +132,7 @@ class SchedulerService:
         """显示弹窗提醒 (打开编辑器)"""
         self.open_file_with_editor(filename, file_path)
 
-    def open_file_with_editor(self, filename, file_path):
+    def open_file_with_editor(self, filename, file_path,show_feedback=True):
         note_type = self.note_manager.get_note_type(filename)
         editor_path = ""
         if note_type == 'markdown':
@@ -149,7 +149,7 @@ class SchedulerService:
                 os.startfile(file_path)
             
             # After opening the file, show the feedback window
-            if self.app_instance and self.app_instance.winfo_exists():
+            if show_feedback and self.app_instance and self.app_instance.winfo_exists():
                 FeedbackWindow(self.app_instance, self.app_instance, filename)
 
         except Exception as e:
