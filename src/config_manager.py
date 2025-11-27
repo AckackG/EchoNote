@@ -2,8 +2,10 @@ import json
 import os
 from loguru import logger
 
+
 class ConfigManager:
     """负责处理应用程序的配置文件（config.json）"""
+
     def __init__(self, config_path='config.json'):
         self.config_path = config_path
         self.default_config = {
@@ -14,7 +16,13 @@ class ConfigManager:
                 "autostart": False,
                 "window_size": [900, 700],
                 "window_position": [100, 100],
-                "pane_width": 250
+                "pane_width": 250,
+                # Define time slots for analysis (Start times). Last entry is end of day.
+                # Edit in config.json
+                "analysis_slots": [
+                    "00:00", "08:15","08:30","08:45", "09:00", "10:00", "11:00",
+                    "14:30", "15:00", "16:00", "17:00", "17:30", "24:00"
+                ]
             },
             "notes_schedule": {}
         }
@@ -53,6 +61,11 @@ class ConfigManager:
                             schedule_info['stats']["mastered_count"] = 0
                         if "last_shown" not in schedule_info['stats']:
                             schedule_info['stats']["last_shown"] = ""
+
+                # Ensure analysis_slots exists
+                if "analysis_slots" not in config["settings"]:
+                    config["settings"]["analysis_slots"] = self.default_config["settings"]["analysis_slots"]
+
                 return config
         except (json.JSONDecodeError, IOError) as e:
             logger.error(f"加载配置文件失败: {e}。将使用默认配置。")
@@ -100,7 +113,8 @@ class ConfigManager:
             # Ensure new/updated schedules are enabled
             schedule_info['enable'] = True
             # Preserve existing stats if they exist
-            if note_filename in self.config['notes_schedule'] and 'stats' in self.config['notes_schedule'][note_filename]:
+            if note_filename in self.config['notes_schedule'] and 'stats' in self.config['notes_schedule'][
+                note_filename]:
                 schedule_info['stats'] = self.config['notes_schedule'][note_filename]['stats']
             self.config['notes_schedule'][note_filename] = schedule_info
         self.save_config()
@@ -117,14 +131,14 @@ class ConfigManager:
         if filename not in self.config['notes_schedule']:
             logger.warning(f"尝试增加不存在笔记的统计数据: {filename}")
             return
-        
+
         note_schedule = self.config['notes_schedule'][filename]
         if 'stats' not in note_schedule:
             note_schedule['stats'] = {"shown_count": 0, "mastered_count": 0, "last_shown": ""}
-        
+
         if stat_key in note_schedule['stats']:
             note_schedule['stats'][stat_key] += 1
-            if stat_key == "shown_count": # only update last_shown when shown_count is incremented
+            if stat_key == "shown_count":  # only update last_shown when shown_count is incremented
                 import datetime
                 note_schedule['stats']["last_shown"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.save_config()

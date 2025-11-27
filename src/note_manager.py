@@ -8,6 +8,7 @@ class NoteManager:
     """负责扫描和管理数据文件夹中的笔记文件"""
     SUPPORTED_IMG_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp']
     SUPPORTED_MD_EXTS = ['.md', '.markdown']
+    SUPPORTED_WEB_EXTS = ['.mhtml', '.html']  # Added MHTML support
 
     def __init__(self, data_folder):
         self.data_folder = data_folder
@@ -25,7 +26,10 @@ class NoteManager:
             file_path = os.path.join(self.data_folder, filename)
             if os.path.isfile(file_path):
                 _, ext = os.path.splitext(filename)
-                if ext.lower() in self.SUPPORTED_MD_EXTS or ext.lower() in self.SUPPORTED_IMG_EXTS:
+                ext = ext.lower()
+                if (ext in self.SUPPORTED_MD_EXTS or
+                    ext in self.SUPPORTED_IMG_EXTS or
+                    ext in self.SUPPORTED_WEB_EXTS):
                     self.notes.append(filename)
 
         # 根据文件的创建时间进行升序排序
@@ -36,8 +40,11 @@ class NoteManager:
     def get_note_type(self, filename):
         """根据文件名后缀判断笔记类型"""
         _, ext = os.path.splitext(filename)
-        if ext.lower() in self.SUPPORTED_MD_EXTS:
+        ext = ext.lower()
+        if ext in self.SUPPORTED_MD_EXTS:
             return 'markdown'
-        elif ext.lower() in self.SUPPORTED_IMG_EXTS:
+        elif ext in self.SUPPORTED_IMG_EXTS:
             return 'image'
+        elif ext in self.SUPPORTED_WEB_EXTS:
+            return 'web'
         return 'unknown'

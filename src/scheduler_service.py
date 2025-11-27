@@ -8,7 +8,7 @@ import subprocess
 from loguru import logger
 from win10toast_click import ToastNotifier
 
-from ui.feedback_window import FeedbackWindow # Import FeedbackWindow
+from ui.feedback_window import FeedbackWindow  # Import FeedbackWindow
 
 
 class MyToastNotifier(ToastNotifier):
@@ -24,7 +24,7 @@ class SchedulerService:
     def __init__(self, config_manager, note_manager, app_instance):
         self.config_manager = config_manager
         self.note_manager = note_manager
-        self.app_instance = app_instance # Store app instance to pass to FeedbackWindow
+        self.app_instance = app_instance  # Store app instance to pass to FeedbackWindow
         self.stop_event = threading.Event()
         self.thread = None
         self.toaster = MyToastNotifier()
@@ -62,7 +62,7 @@ class SchedulerService:
             if not schedule_info.get('enable', True):
                 logger.info(f"跳过已禁用的笔记提醒: '{filename}'")
                 continue
-                
+
             try:
                 schedule_rules = schedule_info.get("schedule")
                 mode = schedule_info.get("mode")
@@ -97,7 +97,7 @@ class SchedulerService:
         """根据模式触发提醒"""
         logger.info(f"触发提醒: 文件='{filename}', 模式='{mode}'")
         self.config_manager.increment_stat(filename, "shown_count")  # 增加提醒次数统计
-        
+
         data_folder = self.config_manager.get_setting("data_folder")
         if not data_folder:
             logger.error("无法触发提醒，因为数据文件夹未设置。")
@@ -132,22 +132,25 @@ class SchedulerService:
         """显示弹窗提醒 (打开编辑器)"""
         self.open_file_with_editor(filename, file_path)
 
-    def open_file_with_editor(self, filename, file_path,show_feedback=True):
+    def open_file_with_editor(self, filename, file_path, show_feedback=True):
         note_type = self.note_manager.get_note_type(filename)
         editor_path = ""
+
         if note_type == 'markdown':
             editor_path = self.config_manager.get_setting("md_editor_path")
         elif note_type == 'image':
             editor_path = self.config_manager.get_setting("img_editor_path")
+        # For 'web' or 'unknown', editor_path remains empty, triggering system default
 
         try:
             if editor_path and os.path.exists(editor_path):
                 logger.info(f"使用指定编辑器 '{editor_path}' 打开 '{file_path}'")
                 subprocess.Popen([editor_path, file_path])
             else:
-                logger.warning(f"编辑器路径未设置或无效，尝试使用系统默认程序打开 '{file_path}'")
+                logger.warning(
+                    f"编辑器路径未设置，或文件类型 '{note_type}' 无特定编辑器，尝试使用系统默认程序打开 '{file_path}'")
                 os.startfile(file_path)
-            
+
             # After opening the file, show the feedback window
             if show_feedback and self.app_instance and self.app_instance.winfo_exists():
                 FeedbackWindow(self.app_instance, self.app_instance, filename)

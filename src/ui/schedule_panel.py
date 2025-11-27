@@ -127,8 +127,8 @@ class SchedulePanel(ctk.CTkFrame):
         self.btn_smart_analyze.pack(side="left", padx=(0, 10))
 
         self.btn_disable_schedule = ctk.CTkButton(self.button_frame, text="禁用此设置",
-                                                   command=self.disable_current_schedule,
-                                                   fg_color="#555555", hover_color="#444444")
+                                                  command=self.disable_current_schedule,
+                                                  fg_color="#555555", hover_color="#444444")
         self.btn_disable_schedule.pack(side="left")
 
         # --- 布局规则构建器 ---
@@ -146,9 +146,12 @@ class SchedulePanel(ctk.CTkFrame):
 
     def run_smart_analysis(self):
         """执行智能分析：计算、显示任务分布图并推荐空闲时间点"""
-        grid = self.app.task_analyzer.analyze_weekly_schedule()
-        self._show_analysis_window(grid)
-        day_en, hour_str = self.app.task_analyzer.find_least_busy_slot(grid)
+        # analyze_weekly_schedule now returns (grid, headers)
+        grid, headers = self.app.task_analyzer.analyze_weekly_schedule()
+        self._show_analysis_window(grid, headers)
+
+        # find_least_busy_slot now returns (day_en, hour_str, minute_str)
+        day_en, hour_str, minute_str = self.app.task_analyzer.find_least_busy_slot(grid)
 
         self.reset_schedule_gui()
         self.unit_var.set("周")
@@ -156,7 +159,7 @@ class SchedulePanel(ctk.CTkFrame):
             var.set(False)
         self.weekday_vars[day_en].set(True)
         self.hour_var.set(hour_str)
-        self.minute_var.set("30")
+        self.minute_var.set(minute_str)
 
         self.on_unit_change()
 
@@ -166,9 +169,8 @@ class SchedulePanel(ctk.CTkFrame):
             self.analysis_window.destroy()
         self.analysis_window = None
 
-    def _show_analysis_window(self, grid_data):
+    def _show_analysis_window(self, grid_data, headers):
         """创建一个新窗口来显示任务分布热力图，如果已存在则置顶"""
-        # 如果窗口已存在，则将其置顶并返回，不再创建新窗口
         if self.analysis_window is not None and self.analysis_window.winfo_exists():
             self.analysis_window.lift()
             self.analysis_window.focus()
@@ -178,32 +180,50 @@ class SchedulePanel(ctk.CTkFrame):
         self.analysis_window = win  # 追踪新创建的窗口实例
         win.title("任务分布热力图")
 
-        # --- 修改开始: 调整窗口位置计算逻辑 ---
-        win_width = 540
-        win_height = 320
+        # --- 动态计算窗口大小 ---
+        col_count = len(headers)
+        col_width = 80  # default width for time column
+        row_height = 30
+
+        content_width = 60 + (col_count * col_width)  # 60 is for row header (weekday)
+        content_height = 30 + (7 * row_height)  # 30 for col header
+
+        # Padding
+        win_width = content_width + 40
+        win_height = content_height + 40
+
+        # Limit max width if too many columns (add simple scrolling if needed, but for now just resize)
+        # For very large number of slots, a scrollable frame would be better, but we keep it simple here.
+
         # 获取主窗口的位置和大小
         main_win_x = self.app.winfo_x()
         main_win_y = self.app.winfo_y()
         main_win_width = self.app.winfo_width()
-        # 计算新窗口的位置，使其右上角与主窗口的右上角对齐
+
         pos_x = main_win_x + main_win_width - win_width
+        # Ensure it doesn't go off-screen roughly
+        if pos_x < 0: pos_x = 0
+
         pos_y = main_win_y
         win.geometry(f"{win_width}x{win_height}+{pos_x}+{pos_y}")
-        # --- 修改结束 ---
 
         win.transient(self.app)
         win.protocol("WM_DELETE_WINDOW", self._on_analysis_window_close)
 
+        # Main frame needs to accommodate dynamic columns
         main_frame = ctk.CTkFrame(win)
         main_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
         days = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-        headers = ["非工作", "8-9", "9-10", "10-11", "午休", "15-16", "16-17", "17-18"]
-        column_widths = [60, 40, 40, 40, 60, 40, 40, 40]
 
         # 创建时间表头
         for i, header in enumerate(headers):
-            label = ctk.CTkLabel(main_frame, text=header, font=("Segoe UI", 10), width=column_widths[i])
+            # Shorten header if it's too long
+            display_header = header
+            if len(header) > 11:  # e.g. "08:00-09:00" is 11 chars
+                pass
+
+            label = ctk.CTkLabel(main_frame, text=display_header, font=("Segoe UI", 10), width=col_width)
             label.grid(row=0, column=i + 1, padx=1, pady=1)
 
         # 创建星期表头
@@ -217,7 +237,7 @@ class SchedulePanel(ctk.CTkFrame):
                 count = grid_data[day_idx][col_idx]
                 color = self._get_color_for_value(count)
 
-                cell_frame = ctk.CTkFrame(main_frame, fg_color=color, width=column_widths[col_idx], height=30,
+                cell_frame = ctk.CTkFrame(main_frame, fg_color=color, width=col_width, height=row_height,
                                           corner_radius=3, border_width=0)
                 cell_frame.grid(row=day_idx + 1, column=col_idx + 1, padx=1, pady=1)
                 cell_frame.grid_propagate(False)
@@ -254,7 +274,7 @@ class SchedulePanel(ctk.CTkFrame):
     def hide_schedule_widgets(self):
         self.label_mode.grid_forget()
         self.mode_frame.grid_forget()
-        self.label_shown_count.grid_forget() # Hide the new label
+        self.label_shown_count.grid_forget()  # Hide the new label
         self.label_rule_header.grid_forget()
         self.rule_builder_frame.grid_forget()
         self.weekday_frame.grid_forget()
@@ -264,7 +284,7 @@ class SchedulePanel(ctk.CTkFrame):
     def show_schedule_widgets(self):
         self.label_mode.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
         self.mode_frame.grid(row=2, column=0, columnspan=4, padx=10, pady=5, sticky="w")
-        self.label_shown_count.grid(row=2, column=2, columnspan=2, padx=10, pady=5, sticky="e") # Show the new label
+        self.label_shown_count.grid(row=2, column=2, columnspan=2, padx=10, pady=5, sticky="e")  # Show the new label
         self.label_rule_header.grid(row=3, column=0, columnspan=2, padx=10, pady=(10, 0), sticky="w")
         self.rule_builder_frame.grid(row=4, column=0, columnspan=4, padx=10, pady=0, sticky="w")
         self.on_unit_change()
